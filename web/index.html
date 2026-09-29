@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cinabre</title>
+  <!-- icône de secours ; app.js la redessine avec la police Spectral une fois chargée -->
+  <link rel="icon" id="icone" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext x='32' y='54' text-anchor='middle' font-family='Georgia,serif' font-weight='700' font-size='70' fill='%23d8573c'%3EC%3C/text%3E%3C/svg%3E">
+  <script>try{var t=localStorage.getItem("theme");if(t==="clair"||t==="sombre")document.documentElement.dataset.theme=t}catch(e){}</script>
+  <link rel="stylesheet" href="css/polices.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="barre">
+    <div class="entete-gauche">
+      <div class="marque">Cinabre</div>
+      <div class="frises">
+        <button class="frise-courante" id="frise-courante" aria-haspopup="true" title="Changer de frise ou en créer une" data-t-title>
+          <span id="frise-titre"></span><span class="chevron"></span></button>
+        <div class="menu menu-frises" id="menu-frises"></div>
+      </div>
+    </div>
+    <nav class="onglets" aria-label="Onglets" data-t-aria>
+      <a href="#frise" data-onglet="frise" data-t>Frise</a>
+      <a href="#stats" data-onglet="stats" data-t>Statistiques</a>
+      <a href="#jeu" data-onglet="jeu" data-t hidden>Jeu</a>
+      <a href="#donnees" data-onglet="donnees" data-t>Données</a>
+      <a href="#aide" data-onglet="aide" data-t>Guide</a>
+    </nav>
+    <label class="recherche">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+      <input id="recherche" type="search" data-t-placeholder placeholder="Rechercher un évènement ou une année" autocomplete="off" spellcheck="false">
+      <span id="compteur"></span>
+    </label>
+    <div class="enregistrement">
+      <span id="etat-enregistrement" class="etat-enregistrement"></span>
+      <button id="enregistrer" class="bouton principal" hidden data-t>Enregistrer</button>
+      <div id="langues" class="langues" role="group" aria-label="Langue de l'interface" data-t-aria></div>
+      <button id="theme" class="bouton-theme" type="button" aria-label="Changer de thème"><svg class="soleil" viewBox="-12 -12 24 24" aria-hidden="true"><circle r="4.2"/><path d="M7 0H9.6M4.95 4.95L6.79 6.79M0 7V9.6M-4.95 4.95L-6.79 6.79M-7 0H-9.6M-4.95 -4.95L-6.79 -6.79M0 -7V-9.6M4.95 -4.95L6.79 -6.79"/></svg><svg class="lune" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M3.5 -8.2A8.6 8.6 0 1 0 8.4 4.2A7 7 0 0 1 3.5 -8.2Z"/></svg></button>
+    </div>
+  </header>
+
+  <div class="corps">
+    <aside id="groupes" class="panneau" aria-label="Filtre par groupe" data-t-aria></aside>
+    <main>
+      <div id="chargement" class="a-venir"><h2 data-t>Chargement…</h2></div>
+      <section id="vue-frise" class="vue"></section>
+      <section id="vue-stats" class="vue"></section>
+      <section id="vue-jeu" class="vue"></section>
+      <section id="vue-donnees" class="vue"></section>
+      <section id="vue-aide" class="vue"></section>
+    </main>
+  </div>
+
+  <div id="popup" class="popup" role="tooltip"></div>
+</body>
+</html>

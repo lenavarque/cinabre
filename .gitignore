@@ -1,0 +1,16 @@
+# Vos frises et leurs copies de sécurité restent chez vous
+/*.json
+/sauvegardes/
+
+# Démonstration assemblée (voir .github/workflows/pages.yml)
+_site/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Éditeurs et systèmes
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
