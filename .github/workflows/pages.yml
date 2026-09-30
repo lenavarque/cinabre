@@ -1,8 +1,8 @@
-name: Démonstration
+name: Example pages
 
-# Publie les deux frises de démonstration (demo/, exportées depuis Cinabre, en lecture seule) sur GitHub Pages :
-# l'histoire universelle à la racine, la Révolution française dans /revolution/ (réglage du dépôt :
-# Settings → Pages → Source : GitHub Actions).
+# Publishes the example timelines (demo/, exported read-only from Cinabre) on GitHub Pages: in English at the root
+# (world history) and in /revolution/, in French under /fr/ and /fr/revolution/
+# (repository setting: Settings → Pages → Source: GitHub Actions).
 on:
   push:
     branches: [main]
@@ -18,26 +18,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  construire:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Pages de démonstration
+      - name: Example pages
         run: |
-          mkdir -p _site/revolution
-          cp demo/histoire.html _site/index.html
-          cp demo/revolution.html _site/revolution/index.html
+          mkdir -p _site/revolution _site/fr/revolution
+          cp demo/en/histoire.html _site/index.html
+          cp demo/en/revolution.html _site/revolution/index.html
+          cp demo/fr/histoire.html _site/fr/index.html
+          cp demo/fr/revolution.html _site/fr/revolution/index.html
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
-  publier:
-    needs: construire
+  deploy:
+    needs: build
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - id: deploiement
+      - id: deployment
         uses: actions/deploy-pages@v5

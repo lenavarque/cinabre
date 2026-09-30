@@ -52,7 +52,7 @@ export const GUIDE = [
     It contains the timeline as displayed, unsaved changes included; to update it, export it again.
     It is in the interface language at the time of the export, with no language choice.</p>
     <h4>Language</h4>
-    <p><b>FR · EN</b>, top right, switches the interface between French and English: menus, buttons, messages, Guide.
+    <p><b>FR · EN</b>, top right, switches the interface between French and English: menus, buttons, messages, Guide. At first, it follows the browser's language.
     The data is never translated (names, descriptions, groups, themes); only dates are written differently on screen
     (“- 2 334” becomes “2334 BC” in English), without changing the file. Unsaved changes are kept
     when switching language, but the undo history starts afresh. A new timeline created in English gets English starting themes.</p>

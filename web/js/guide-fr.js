@@ -53,7 +53,7 @@ export const GUIDE = [
     Elle contient la frise telle qu'elle est affichée, modifications non enregistrées comprises ; pour la mettre à jour, exportez-la de nouveau.
     Elle est dans la langue de l'interface au moment de l'export, sans choix de langue.</p>
     <h4>Langue</h4>
-    <p><b>FR · EN</b>, en haut à droite, passe l'interface en français ou en anglais : menus, boutons, messages, Guide.
+    <p><b>FR · EN</b>, en haut à droite, passe l'interface en français ou en anglais : menus, boutons, messages, Guide. Au départ, c'est la langue du navigateur.
     Les données ne sont jamais traduites (noms, descriptions, groupes, thèmes) ; seules les dates changent d'écriture à l'affichage
     (« - 2 334 » devient « 2334 BC » en anglais), sans que le fichier change. Les modifications non enregistrées sont conservées
     au changement de langue, mais l'historique d'annulation repart de zéro. Une nouvelle frise créée en anglais reçoit des thèmes de départ en anglais.</p>

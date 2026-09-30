@@ -1,28 +1,28 @@
-# Contribuer
+# Contributing
 
-Merci de votre intérêt ! Les remarques, les corrections et les idées sont bienvenues.
+Thank you for your interest! Comments, corrections and ideas are welcome, in English or in French.
 
-## Signaler un problème ou proposer une idée
+## Reporting a problem or suggesting an idea
 
-Ouvrez une [issue](https://github.com/lenavarque/cinabre/issues) en décrivant ce que vous avez fait, ce qui s'est
-passé et ce que vous attendiez (navigateur, système, capture d'écran si l'affichage est en cause).
+Open an [issue](https://github.com/lenavarque/cinabre/issues) describing what you did, what happened and what you
+expected (browser, system, and a screenshot if the display is involved).
 
-## Proposer une modification
+## Proposing a change
 
-1. Créez une branche à partir de `main`.
-2. Faites votre modification, puis essayez-la : `python serveur.py`, dans les deux langues et les deux thèmes.
-3. Vérifiez qu'une page exportée (menu des frises → *Exporter en page HTML*) s'ouvre toujours, et qu'on n'y peut rien
-   modifier.
-4. Notez le changement dans une section « Non publié » de [CHANGELOG.md](CHANGELOG.md).
-5. Ouvrez une *pull request* qui explique le pourquoi du changement.
+1. Create a branch from `main`.
+2. Make your change, then try it: `python serveur.py`, in both languages and both themes.
+3. Check that an exported page (timeline menu → *Export as an HTML page*) still opens, and that nothing can be changed
+   in it.
+4. Note the change in an "Unreleased" section of [CHANGELOG.md](CHANGELOG.md).
+5. Open a pull request explaining why the change is needed.
 
 ## Conventions
 
-- **Aucune dépendance** : le serveur n'utilise que la bibliothèque standard de Python ; l'interface est en HTML, CSS
-  et modules JavaScript natifs, sans bibliothèque ni étape de compilation.
-- Le code, les commentaires et la documentation sont **en français**, noms de variables compris. Tout texte de
-  l'interface passe par `t()` et reçoit sa traduction dans `web/js/anglais.js` ; le guide existe en français
-  (`guide-fr.js`) et en anglais (`guide-en.js`).
-- Toute modification des données passe par `modifier()` (`web/js/donnees.js`), qui la rend annulable.
-- Chaque couleur de `web/css/style.css` est une paire `light-dark(thème clair, thème sombre)`.
-- Un nouveau module JavaScript doit être ajouté à la liste `MODULES` de `web/js/export.js`.
+- **No dependency**: the server only uses the Python standard library; the interface is plain HTML, CSS and native
+  JavaScript modules, with no library and no build step.
+- The code, its comments and variable names are **in French**. Every interface text goes through `t()` (written in
+  French) and gets its English translation in `web/js/anglais.js`; the guide exists in French (`guide-fr.js`) and in
+  English (`guide-en.js`).
+- Every change to the data goes through `modifier()` (`web/js/donnees.js`), which makes it undoable.
+- Every colour in `web/css/style.css` is a `light-dark(light theme, dark theme)` pair.
+- A new JavaScript module must be added to the `MODULES` list in `web/js/export.js`.

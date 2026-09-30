@@ -1,21 +1,21 @@
-# Code de conduite
+# Code of conduct
 
-Ce projet est ouvert à tous, quels que soient l'expérience, l'origine, l'identité ou les opinions de chacun.
+This project is open to everyone, whatever their experience, background, identity or opinions.
 
-## Ce que l'on attend
+## What is expected
 
-- Être courtois et bienveillant, dans les issues comme dans les revues de code.
-- Critiquer les idées et le code, jamais les personnes.
-- Accepter les remarques constructives, et reconnaître ses erreurs.
-- Garder à l'esprit que chacun contribue sur son temps libre.
+- Be courteous and kind, in issues as in code reviews.
+- Criticise ideas and code, never people.
+- Accept constructive remarks, and acknowledge your mistakes.
+- Keep in mind that everyone contributes in their spare time.
 
-## Ce qui n'est pas accepté
+## What is not accepted
 
-- Les insultes, le harcèlement, les propos discriminatoires, les attaques personnelles.
-- La publication d'informations privées sur quelqu'un sans son accord.
-- Tout comportement qui rendrait la participation pénible ou dangereuse pour d'autres.
+- Insults, harassment, discriminatory remarks, personal attacks.
+- Publishing private information about someone without their consent.
+- Any behaviour that would make taking part unpleasant or unsafe for others.
 
-## Signaler un problème
+## Reporting a problem
 
-Écrivez à contact@leportulan.fr. Les signalements sont traités avec discrétion. Selon la gravité, la personne
-concernée peut recevoir un avertissement, ou être exclue du projet.
+Write to contact@leportulan.fr. Reports are handled discreetly. Depending on how serious it is, the person concerned
+may receive a warning, or be excluded from the project.

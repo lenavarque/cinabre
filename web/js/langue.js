@@ -11,9 +11,10 @@ export const langue = EXPORT?.dataset.langue || lireLangue();
 export const anglais = langue === "en";
 document.documentElement.lang = langue;
 
+// Choix retenu, sinon la langue du navigateur : français s'il est en français, anglais sinon
 function lireLangue() {
   try { const l = localStorage.getItem("langue"); if (l in LANGUES) return l; } catch {}
-  return "fr";
+  return (navigator.language || "fr").toLowerCase().startsWith("fr") ? "fr" : "en";
 }
 
 // Retenue pour les prochaines visites ; la page est rechargée par app.js
