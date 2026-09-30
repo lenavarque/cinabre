@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "Si vous utilisez cette application dans un travail publié, vous pouvez la citer ainsi."
 title: "Cinabre"
-abstract: "Une frise chronologique personnelle : un serveur Python local, une interface web, des données en JSON."
+abstract: "Un outil pour construire ses propres frises chronologiques : un serveur Python local, une interface web, des données en JSON."
 type: software
 authors:
   - alias: lenavarque
