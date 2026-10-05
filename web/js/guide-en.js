@@ -291,6 +291,7 @@ export const GUIDE = [
       <li>Choose <b>Start of era</b> in the “Start or end of an era” field, then <b>Apply</b>. The event turns bold
       and joins the “Era starts without an end” list in the <b>To check</b> tab.</li>
       <li>Better, if you know the end: <b>Link to an end…</b>. Choose the end event, or enter a date.
+      The later events that have the start's place among their places are offered.
       An <b>era</b> is created, with its duration bar in the timeline; the start event is removed from the dates.
       The end event is only removed if the box is ticked (it is by default for an “end of era”).
       When an end has the same name (“End of Empire X” for “Start of Empire X”), it is offered first.</li>
@@ -326,7 +327,8 @@ export const GUIDE = [
     <h4>To check</h4>
     <p>Lists what deserves a correction: era starts without an end (with a <b>Link to an end</b> button), isolated ends,
     special lines with an inferred start, events without a group, events and eras without a theme, dates not understood, eras whose end precedes their start,
-    names that are too long (over 50 characters, cut short in the timeline) and duplicate names.</p>`],
+    names that are too long (over 50 characters, cut short in the timeline) and duplicate names.
+    Like the other tables, the list follows the filter and the search; what they hide is shown at the top.</p>`],
 
   ["dates", "Writing a date", `
     <p>Write the date as it should be displayed; the application works out the year to place and sort it.</p>

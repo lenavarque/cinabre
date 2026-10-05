@@ -215,7 +215,8 @@ function correspond(texte) {
 function rendre() {
   if (!etat.donnees) return;
   const aVerifier = verifications();
-  const nVerif = aVerifier.reduce((s, c) => s + c.items.length, 0);
+  // le nombre de l'onglet suit le filtre et la recherche, comme la liste qu'il annonce
+  const nVerif = aVerifier.reduce((s, c) => s + c.items.filter(visibleVerif).length, 0);
   const nombres = {
     evenements: tousLesEvenements().length, periodes: etat.donnees.periodes.length,
     groupes: Object.keys(etat.donnees.groupes).length, themes: index.themes.length, verifier: nVerif,
@@ -608,15 +609,23 @@ function verifications() {
 
 const NOM_LONG = 50;           // « À vérifier » : au-delà, un nom est signalé comme trop long
 
+// Élément de « À vérifier » qui passe le filtre du panneau et la recherche
+const visibleVerif = (it) => (it.type === "ev"
+  ? passeFiltre(it.ev.groupes, it.ev.themes) && correspond(`${it.ev.label} | ${it.ev.comment ?? ""}`)
+  : passeFiltre(it.p.groupes, it.p.themes) && correspond(`${it.p.label} | ${it.p.comment ?? ""}`));
+
 function tableVerifier(categories) {
   lignes = [];
   if (!categories.length) return `<p class="dn-vide">${t("Rien à vérifier.")}</p>`;
+  // ce que le filtre ou la recherche cachent est signalé, pour que la liste ne paraisse pas incomplète
+  const total = categories.reduce((s, c) => s + c.items.length, 0);
+  const masques = total - categories.reduce((s, c) => s + c.items.filter(visibleVerif).length, 0);
+  const note = masques ? `<p class="dn-note">${tn(masques, "{n} autre élément à vérifier est masqué par le filtre ou la recherche ({total} en tout).",
+    "{n} autres éléments à vérifier sont masqués par le filtre ou la recherche ({total} en tout).", { total })}</p>` : "";
   const col = [{ titre: "Date", l: "96px", cl: "c-date" }, { titre: "Nom", l: "38%" }, { titre: "Groupes", l: "22%" }, { titre: "", l: "auto" }];
   let corps = "";
   for (const c of categories) {
-    const items = c.items.filter((it) => it.type === "ev"
-      ? passeFiltre(it.ev.groupes, it.ev.themes) && correspond(`${it.ev.label} | ${it.ev.comment ?? ""}`)
-      : passeFiltre(it.p.groupes, it.p.themes) && correspond(`${it.p.label} | ${it.p.comment ?? ""}`));
+    const items = c.items.filter(visibleVerif);
     if (!items.length) continue;
     corps += `<tr class="dn-categorie"><td colspan="4"><b>${c.titre}</b><span class="n">${items.length}</span>${c.aide ? `<span class="aide">${echapper(c.aide)}</span>` : ""}</td></tr>`;
     corps += items.map((it) => it.type === "ev"
@@ -627,8 +636,8 @@ function tableVerifier(categories) {
           <td class="c-desc">${c.cle === "longs" ? tn(it.p.label.length, "{n} caractère", "{n} caractères")
             : `${t(it.p.type === "section" ? "Ligne spéciale" : "Époque")}, ${t("jusqu'à {fin}", { fin: echapper(texteDate(it.p.fin) || "?") })}`}</td>`)).join("");
   }
-  if (!corps) return vide();
-  return `<table class="dn">${entete(col)}<tbody>${corps}</tbody></table>`;
+  if (!corps) return note + vide();
+  return `${note}<table class="dn">${entete(col)}<tbody>${corps}</tbody></table>`;
 }
 
 function vide() {
@@ -1161,13 +1170,13 @@ function candidatsFin(ev, date) {
   for (const x of etat.donnees.dates) {
     if (x.annee == null || date.annee == null || instantDe(x) <= instantDe(date)) continue;
     for (const e of x.evenements) {
-      if (e === ev || (g0 && e.groupes[0] !== g0)) continue;
+      if (e === ev || (g0 && !e.groupes.includes(g0))) continue;   // le lieu de l'évènement parmi les siens, à n'importe quel rang
       const commun = normaliser(e.label).split(/[^a-z0-9]+/).some((m) => mots.has(m));
       r.push({ ev: e, date: x, probable: e.limite === "fin" && commun });
     }
   }
   // la fin probable (même nom, marquée « fin ») en tête de liste, puis l'ordre chronologique
-  return [...r.filter((c) => c.probable), ...r.filter((c) => !c.probable)].slice(0, 80);
+  return [...r.filter((c) => c.probable), ...r.filter((c) => !c.probable)].slice(0, 300);
 }
 
 function formRelier({ ev, date }) {

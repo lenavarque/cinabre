@@ -291,6 +291,7 @@ export const GUIDE = [
       <li>Choisir <b>Début d'époque</b> dans le champ « Début ou fin d'époque », puis <b>Valider</b>. L'évènement passe en gras
       et rejoint la liste « Débuts d'époque sans fin » de l'onglet <b>À vérifier</b>.</li>
       <li>Mieux, si l'on connaît la fin : <b>Relier à une fin…</b>. On choisit l'évènement de fin, ou on saisit une date.
+      Sont proposés les évènements plus tardifs qui ont le lieu du début parmi leurs lieux.
       Une <b>époque</b> est créée, avec sa barre de durée dans la frise ; l'évènement de début est retiré des dates.
       L'évènement de fin n'est retiré que si la case est cochée (elle l'est d'office pour une « fin d'époque »).
       Quand une fin porte le même nom (« Fin de l'Empire X » pour « Début de l'Empire X »), elle est proposée en premier.</li>
@@ -326,7 +327,8 @@ export const GUIDE = [
     <h4>À vérifier</h4>
     <p>Liste ce qui mérite une correction : débuts d'époque sans fin (avec un bouton <b>Relier à une fin</b>), fins isolées,
     lignes spéciales à début déduit, évènements sans groupe, évènements et époques sans thème, dates non comprises, époques dont la fin précède le début,
-    noms trop longs (plus de 50 caractères, tronqués dans la frise) et noms en double.</p>`],
+    noms trop longs (plus de 50 caractères, tronqués dans la frise) et noms en double.
+    Comme les autres tables, la liste suit le filtre et la recherche ; ce qu'ils masquent est indiqué en haut.</p>`],
 
   ["dates", "Écrire une date", `
     <p>On écrit la date telle qu'elle doit s'afficher ; l'application en déduit l'année pour placer et trier.</p>

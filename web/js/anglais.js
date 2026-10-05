@@ -481,4 +481,6 @@ export const TEXTES = {
   "Copier en JSON": "Copy as JSON",
   "À coller dans « Ajouter plusieurs » d'une autre frise": "To paste into “Add several” of another timeline",
   "ligne spéciale": "special line",
+  "{n} autre élément à vérifier est masqué par le filtre ou la recherche ({total} en tout).": "{n} more item to check is hidden by the filter or the search ({total} in all).",
+  "{n} autres éléments à vérifier sont masqués par le filtre ou la recherche ({total} en tout).": "{n} more items to check are hidden by the filter or the search ({total} in all).",
 };

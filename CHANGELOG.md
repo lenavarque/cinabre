@@ -19,6 +19,8 @@ and version numbers follow [semantic versioning](https://semver.org/).
 - The filter, the position in the timeline and the expanded places are remembered for each timeline separately.
 - Era bars take at most about a third of the width. When there are too many at once, eras marked ★, then the longest
   ones, keep their bar; the others keep their label, and their number is shown at the top.
+- "Link to an end" offers every later event that has the start's place among its places, not only as its first place
+  (up to 300 suggestions).
 
 - The documentation is in English, and the example pages are published in English (French under `/fr/`).
 - The interface follows the browser's language on first visit (French if the browser is in French, English otherwise).
@@ -26,6 +28,8 @@ and version numbers follow [semantic versioning](https://semver.org/).
 ### Fixed
 
 - Much faster drawing of timelines with many eras.
+- The number on the "To check" tab now follows the filter and the search, like the list it announces; the list says
+  how many items they hide.
 
 ## [0.1.0] - 2026-09-29
 
