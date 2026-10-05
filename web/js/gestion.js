@@ -9,7 +9,7 @@ import {
   couleurAffichage, modifier, annuler, peutAnnuler, trierDates, lireApprox, dateAffichee, texteDate, SANS_GROUPE, SANS_THEME,
   parserDate, instant, instantDe, instantDebut, instantFin, formatDate, ecrireDate, regroupement,
   detail, DETAIL_DEFAUT, uneSeuleLigne, rappelContinu, jeuActif, plagesStats, plagesParDefaut, tranchesStats, MAX_TRANCHES,
-  LECTURE_SEULE,
+  LECTURE_SEULE, ordreGroupes, parentDe, sousLieux, sousLieuxReplies, empilerParSousLieu, ecrireFrise,
 } from "./donnees.js";
 import { t, tn, anglais } from "./langue.js";
 
@@ -90,6 +90,8 @@ export function init(el, application) {
     if (e.target.name === "une_seule_ligne") changerReglages({ une_seule_ligne: e.target.value === "oui" ? true : null });
     if (e.target.name === "rappel") changerReglages({ rappel: e.target.value === "continu" ? "continu" : null });
     if (e.target.name === "jeu") changerReglages({ jeu: e.target.value === "oui" ? true : null });
+    if (e.target.name === "sous_lieux") changerReglages({ sous_lieux: e.target.value === "replies" ? "replies" : null });
+    if (e.target.name === "empilement") changerReglages({ empilement: e.target.value === "sous_lieux" ? "sous_lieux" : null });
     if (e.target.name?.startsWith("plage-")) lirePlages(e.target);
   });
   // Tab dans les plages : le réglage est redessiné au changement, on remet le curseur sur le champ suivant
@@ -154,7 +156,7 @@ function existe(s) {
 // ─── Outils ───
 
 const compAnnee = (a, b) => (a == null) - (b == null) || (a ?? 0) - (b ?? 0);
-const ordreGroupe = (gs) => (gs && gs.length ? Object.keys(etat.donnees.groupes).indexOf(gs[0]) : 999);
+const ordreGroupe = (gs) => (gs && gs.length ? index.groupes.findIndex((g) => g.nom === gs[0]) : 999);
 
 function puces(gs) {
   if (!gs || !gs.length) return `<span class="puce-g aucun" style="--ct:${groupe(SANS_GROUPE).affichage}"><i></i>${t(SANS_GROUPE)}</span>`;
@@ -270,7 +272,7 @@ const sansCoche = (colonnes) => (LECTURE_SEULE ? colonnes.filter((c) => c !== CO
 
 // Lecture seule : les champs se lisent (et se copient) mais ne se modifient pas ; les boutons qui modifient
 // disparaissent ; seuls restent ceux qui servent à naviguer (fermer, voir dans la frise, trier, sous-onglets)
-const NAVIGATION = '[data-action="abandonner"], [data-action="frise"], [data-sous]';
+const NAVIGATION = '[data-action="abandonner"], [data-action="frise"], [data-action="copier-json"], [data-sous]';
 function verrouiller(el) {
   el.querySelectorAll("input, textarea, select").forEach((c) => {
     if (c.matches('textarea, input[type="text"], input:not([type])')) c.readOnly = true;
@@ -380,18 +382,24 @@ function tableGroupes() {
   const noms = Object.keys(etat.donnees.groupes);
   const echelles = noms.filter((n) => etat.donnees.groupes[n].type === "echelle");   // niveau = rang parmi les échelles
   if (!noms.length) return `<p class="dn-vide">${t("Aucun groupe pour l'instant : « Ajouter un groupe », en haut à droite. Un groupe est un <b>lieu</b> (Rome, Chine…), ou une <b>échelle</b> (éon, ère…) pour les lignes spéciales.")}</p>`;
-  const col = [{ titre: "Ordre", l: "70px" }, { titre: "Nom", l: "30%" }, { titre: "Type", l: "110px" },
+  const col = [{ titre: "Ordre", l: "70px" }, { titre: "Nom", l: "30%" }, { titre: "Type", l: "190px" },
     { titre: "Couleur", l: "110px" }, { titre: "Évènements", l: "100px", cl: "c-nombre" }, { titre: "Périodes", l: "auto", cl: "c-nombre" }];
-  const corps = noms.filter((nom) => correspond(nom)).map((nom) => {
-    const g = etat.donnees.groupes[nom], k = noms.indexOf(nom);
+  // chaque lieu suivi de ses sous-lieux ; les flèches déplacent parmi les groupes de même niveau
+  const corps = ordreGroupes().filter((nom) => correspond(nom)).map((nom) => {
+    const g = etat.donnees.groupes[nom], parent = parentDe(nom), freres = voisinsGroupe(nom), k = freres.indexOf(nom);
+    const type = g.type === "echelle" ? `${t("Échelle")} · ${t("niveau {n}", { n: echelles.indexOf(nom) + 1 })}`
+      : parent ? t("Sous-lieu de {parent}", { parent: echapper(parent) })
+      : sousLieux(nom).length ? `${t("Lieu")} · ${tn(sousLieux(nom).length, "{n} sous-lieu", "{n} sous-lieux")}` : t("Lieu");
     return ligne({ type: "g", nom }, `
-      <td class="c-ordre">${flechesOrdre(k, noms.length)}</td>
-      <td>${puces([nom])}</td><td>${g.type === "echelle" ? `${t("Échelle")} · ${t("niveau {n}", { n: echelles.indexOf(nom) + 1 })}` : t("Lieu")}</td>
+      <td class="c-ordre">${flechesOrdre(k, freres.length)}</td>
+      <td${parent ? ` class="c-sous-lieu"` : ""}>${puces([nom])}</td><td>${type}</td>
       <td class="c-desc">${echapper(g.couleur)}</td><td class="c-nombre">${c[nom].ev}</td><td class="c-nombre">${c[nom].p}</td>`);
   }).join("");
   return `<table class="dn">${entete(col)}<tbody>${corps}</tbody></table>
-    <p class="dn-note">${t("L'ordre des groupes est celui du panneau de gauche et des colonnes d'époques de la frise.")}</p>`;
+    <p class="dn-note">${t("L'ordre des groupes est celui du panneau de gauche et des colonnes d'époques de la frise. Un lieu peut être rangé dans un autre (sous-lieu) : choisir « Dans » dans son formulaire.")}</p>`;
 }
+// Groupes de même niveau : les sous-lieux du même lieu, ou tous les groupes de premier niveau
+const voisinsGroupe = (nom) => { const p = parentDe(nom); return ordreGroupes().filter((n) => parentDe(n) === p); };
 const flechesOrdre = (k, n) => `<button class="dn-ordre" data-deplacer="-1" ${k ? "" : "disabled"} aria-label="${t("Monter")}">↑</button><button class="dn-ordre" data-deplacer="1" ${k < n - 1 ? "" : "disabled"} aria-label="${t("Descendre")}">↓</button>`;
 
 // Réglages de la frise (enregistrés dans son fichier, clé « reglages »)
@@ -404,6 +412,8 @@ function reglages() {
   const choix = radio("regroupement", r), choixDetail = radio("detail", det), choixLigne = radio("une_seule_ligne", une);
   const choixRappel = radio("rappel", rappelContinu() ? "continu" : "bref");
   const choixJeu = radio("jeu", jeuActif() ? "oui" : "non");
+  const choixSous = radio("sous_lieux", sousLieuxReplies() ? "replies" : "deplies");
+  const choixEmpilement = radio("empilement", empilerParSousLieu() ? "sous_lieux" : "premier");
   const parDefaut = (v) => (v === DETAIL_DEFAUT[r] ? t("Par défaut.") : "");
   const details = r === "jour"
     ? `<p class="dn-aide">${t("Avec une ligne par jour, la date entière est sur la ligne : rien à écrire devant les noms.")}</p>`
@@ -428,7 +438,14 @@ function reglages() {
     ${choixRappel("bref", "Brièvement", "Chaque ligne reste une dizaine de lignes après son passage, puis la frise la pousse vers le haut. Par défaut.")}
     ${choixRappel("continu", "Jusqu'à la suivante de même niveau", "On voit toujours l'éon, l'ère, la période… en cours : chaque ligne spéciale reste jusqu'à la suivante de même niveau, ou jusqu'à sa fin si elle en a une.")}
     <p class="dn-aide">${t("Le niveau d'une ligne spéciale est son groupe de type échelle : dans l'onglet Groupes, la première échelle de la liste est le niveau le plus large, les suivantes de plus en plus fines (flèches ↑ ↓ pour les réordonner).")}</p>
+    <h3>${t("Sous-lieux")}</h3>
+    <p class="dn-aide">${t("Un lieu peut être rangé dans un autre (onglet Groupes, champ « Dans ») : « France » dans « Europe ». Dans le panneau de gauche, les sous-lieux sont :")}</p>
+    ${choixSous("deplies", "Dépliés", "En retrait sous leur lieu, toujours visibles. Par défaut.")}
+    ${choixSous("replies", "Repliés sous leur lieu", "Une flèche devant le lieu les montre ou les cache. Pratique avec beaucoup de lieux.")}
     ${reglagesStats()}
+    <p class="dn-aide">${t("Avec des sous-lieux, les barres sont empilées :")}</p>
+    ${choixEmpilement("premier", "Par lieu de premier niveau", "Un sous-lieu compte dans la couleur de son lieu (« France » dans « Europe ») : peu de couleurs, plus lisible. Par défaut.")}
+    ${choixEmpilement("sous_lieux", "Par sous-lieu", "Chaque lieu, quel que soit son niveau, a sa part de la barre, dans sa couleur.")}
     <h3>${t("Jeu")}</h3>
     ${choixJeu("non", "Pas de jeu", "Par défaut.")}
     ${choixJeu("oui", "Afficher l'onglet Jeu", "« La frise qui se construit » : replacer un à un des évènements de la frise dans l'ordre. Aussi dans les pages exportées de cette frise.")}
@@ -811,6 +828,7 @@ function ouvrir(s, message = "") {
   else if (s.type === "lot") panneau.innerHTML = formLot();
   else panneau.innerHTML = formRelier(s);
   panneau.classList.add("ouvert");
+  panneau.querySelector(".dn-json")?.addEventListener("toggle", (e) => (jsonOuvert = e.target.open));
   panneau.classList.toggle("large", s.type === "lot");
   if (!meme) panneau.scrollTop = 0;
   if (message) { const m = panneau.querySelector(".dn-message"); m.textContent = message; m.className = "dn-message ok"; }
@@ -868,7 +886,7 @@ function dessinerChoixGroupes() {
   const puce = (nom, choisi, k) => `<button type="button" class="puce-choix${choisi ? " choisi" : ""}" data-groupe="${echapper(nom)}" style="--ct:${groupe(nom).affichage}"
       title="${t(choisi ? (k ? "Clic : en faire le groupe principal" : "Groupe principal") : "Ajouter ce groupe")}">
       <i></i>${echapper(nom)}${choisi && !k && choixGroupes.length > 1 ? ` <small>${t("principal")}</small>` : ""}${choisi ? `<span class="retirer" data-retirer title="${t("Retirer")}">×</span>` : ""}</button>`;
-  const autres = Object.keys(etat.donnees.groupes).filter((g) => !choixGroupes.includes(g));
+  const autres = ordreGroupes().filter((g) => !choixGroupes.includes(g));
   el.innerHTML = `<div class="dn-choisis">${choixGroupes.length ? choixGroupes.map((g, k) => puce(g, true, k)).join("") : `<span class="dn-aide">${t("Aucun groupe")}</span>`}</div>
     <div class="dn-dispo">${autres.map((g) => puce(g, false)).join("")}</div>`;
 }
@@ -899,6 +917,7 @@ function formEvenement({ ev, date }) {
       <label class="dn-case"><input type="checkbox" name="important"${ev.important ? " checked" : ""}> ${t("★ Important")}</label>
     </div>
     ${editeurSources(ev.sources)}
+    ${editeurJson()}
     ${boutons(!nouveau, extra)}
   </div>`;
 }
@@ -937,6 +956,131 @@ const completerLien = (lien) => (/^[a-z][a-z0-9+.-]*:/i.test(lien) ? lien : `htt
 // « sources » n'est écrit dans le fichier que s'il y en a
 function marquerSources(o, sources) { marquerListe(o, "sources", sources); }
 
+// ─── JSON d'un évènement ou d'une période ───
+// Même format que « Ajouter plusieurs » : copié ici, collé dans « Ajouter plusieurs » d'une autre frise.
+// Modifier le JSON remplit le formulaire, qui s'applique comme une saisie ordinaire.
+
+let jsonOuvert = false, minuterieJson = null;
+const AIDE_JSON = () => t(LECTURE_SEULE ? "Pour reprendre cet élément dans une frise : Copier, puis, dans la frise, « Ajouter plusieurs » et coller."
+  : "Modifier le JSON modifie l'élément. Pour le reprendre dans une autre frise : Copier, puis, dans l'autre frise, « Ajouter plusieurs » et coller.");
+
+function editeurJson() {
+  return `<details class="dn-json"${jsonOuvert ? " open" : ""}><summary>${t("JSON <em>pour copier l'élément dans une autre frise</em>")}</summary>
+    <textarea name="json" rows="10" spellcheck="false" aria-label="JSON"></textarea>
+    <span class="dn-aide" data-aide="json">${AIDE_JSON()}</span>
+    <div class="dn-boutons secondaires"><button type="button" class="bouton discret petit" data-action="copier-json">${t("Copier")}</button></div>
+  </details>`;
+}
+
+// Objet JSON d'un évènement ou d'une période (les marques et les listes vides ne sont pas écrites)
+function objetJson(o, date = null) {
+  const r = date ? { date: date.date } : { date: o.debut };
+  if (!date && o.fin) r.fin = o.fin;
+  r.nom = o.label;
+  if (!date && o.type === "section") r.type = "section";
+  if (o.sous_titre) r.sous_titre = o.sous_titre;
+  r.groupes = [...(o.groupes || [])];
+  if (o.themes?.length) r.themes = [...o.themes];
+  if (o.comment) r.description = o.comment;
+  if (date ? o.approx : o.debut_approx) r.approx = true;
+  if (!date && o.fin_approx) r.fin_approx = true;
+  if (o.important) r.important = true;
+  if (o.regne) r.regne = true;
+  if (o.limite) r.limite = o.limite;
+  if (o.sources?.length) r.sources = o.sources.map((s) => ({ ...s }));
+  return r;
+}
+
+// L'élément tel que le formulaire le décrit en ce moment (saisie pas encore appliquée comprise)
+function objetDuFormulaire() {
+  const commun = { label: valeur("label").trim(), groupes: choixGroupes, themes: choixThemes, comment: valeur("comment").trim() || null,
+    important: coche("important"), regne: coche("regne"), sources: lireSources() };
+  if (sel.type === "ev") {
+    const d = lireApprox(valeur("date").trim());
+    return objetJson({ ...commun, approx: d.approx || coche("approx"), limite: valeur("limite") || null }, { date: d.texte });
+  }
+  const debut = lireApprox(valeur("debut").trim()), fin = lireApprox(valeur("fin").trim());
+  return objetJson({ ...commun, type: valeur("type"), sous_titre: valeur("sous_titre").trim() || null, debut: debut.texte, fin: fin.texte || null,
+    debut_approx: debut.approx || coche("debut_approx"), fin_approx: !!fin.texte && (fin.approx || coche("fin_approx")) });
+}
+
+// Le JSON suit le formulaire, sauf pendant qu'on l'écrit ou s'il contient une erreur pas encore corrigée
+function majJson() {
+  const zoneJson = champ("json");
+  if (!zoneJson || document.activeElement === zoneJson || zoneJson.dataset.erreur) return;
+  zoneJson.value = JSON.stringify(objetDuFormulaire(), null, 2);
+  const aideJ = panneau.querySelector('[data-aide="json"]');
+  aideJ.className = "dn-aide";
+  aideJ.textContent = AIDE_JSON();
+}
+
+// JSON modifié : vérifié comme dans « Ajouter plusieurs », puis recopié dans le formulaire
+function lireJson() {
+  minuterieJson = null;
+  const zoneJson = champ("json"), aideJ = panneau.querySelector('[data-aide="json"]');
+  if (!zoneJson) return;
+  const dire = (texte) => { aideJ.textContent = texte; aideJ.className = "dn-aide erreur"; zoneJson.dataset.erreur = "1"; };
+  const lus = analyserLot(zoneJson.value);
+  if (lus.length !== 1) return dire(t("Un seul élément ici, sous la forme { … }. Pour en ajouter plusieurs : « Ajouter plusieurs »."));
+  const l = lus[0];
+  if (l.erreurs.length) return dire(l.erreurs.join(" ; "));
+  if (sel.type === "ev" && l.type === "p") return dire(t("Avec une fin ou un type, c'est une période : à coller dans l'onglet Périodes, « Ajouter plusieurs »."));
+  delete zoneJson.dataset.erreur;
+  aideJ.className = "dn-aide";
+  aideJ.textContent = AIDE_JSON();
+  if (sel.type === "ev") {
+    champ("date").value = l.debut;
+    champ("approx").checked = l.approx;
+    champ("limite").value = l.limite ?? "";
+  } else {
+    champ("type").value = l.section ? "section" : "epoque";
+    champ("debut").value = l.debut;
+    champ("fin").value = l.fin ?? "";
+    champ("sous_titre").value = l.sousTitre ?? "";
+    champ("debut_approx").checked = l.approx;
+    champ("fin_approx").checked = l.finApprox;
+  }
+  champ("label").value = l.label;
+  champ("comment").value = l.comment ?? "";
+  champ("important").checked = l.important;
+  champ("regne").checked = l.regne;
+  choixGroupes = [...l.groupes];
+  choixThemes = [...l.themes];
+  dessinerChoixGroupes();
+  dessinerChoixThemes();
+  const boite = panneau.querySelector(".dn-sources");
+  boite.querySelectorAll(".dn-source").forEach((s) => s.remove());
+  boite.insertAdjacentHTML("afterbegin", l.sources.map(htmlSource).join(""));
+  majAides();
+  modifiee = true;
+  if (direct()) programmerApplication("json", 0);
+}
+
+// Copie dans le presse-papiers ; le bouton le confirme un instant
+async function copierTexte(texte, bouton) {
+  try { await navigator.clipboard.writeText(texte); }
+  catch {
+    // page ouverte depuis un fichier : l'ancienne méthode
+    const z = Object.assign(document.createElement("textarea"), { value: texte });
+    document.body.append(z);
+    z.select();
+    document.execCommand("copy");
+    z.remove();
+  }
+  const avant = bouton.textContent;
+  bouton.textContent = t("Copié");
+  setTimeout(() => (bouton.textContent = avant), 1500);
+}
+
+// Lignes cochées en JSON, dans l'ordre chronologique : à coller dans « Ajouter plusieurs » d'une autre frise
+function jsonSerie() {
+  const dateDe = new Map();
+  for (const x of etat.donnees.dates) for (const ev of x.evenements) dateDe.set(ev, x);
+  const liste = [...coches].map((o) => (dateDe.has(o) ? { o, date: dateDe.get(o), inst: instantDe(dateDe.get(o)) } : { o, inst: instantDebut(o) }));
+  liste.sort((a, b) => (a.inst ?? 0) - (b.inst ?? 0));
+  return JSON.stringify(liste.map(({ o, date }) => objetJson(o, date)), null, 2);
+}
+
 // Formulaire de période
 function formPeriode({ p }) {
   const nouveau = !p;
@@ -965,6 +1109,7 @@ function formPeriode({ p }) {
       <label class="dn-case" data-section-seule><input type="checkbox" name="debut_deduit"${p.debut_deduit ? " checked" : ""}> ${t("Début déduit, à vérifier")}</label>
     </div>
     ${editeurSources(p.sources)}
+    ${editeurJson()}
     ${boutons(!nouveau, nouveau ? "" : boutonFrise())}
   </div>`;
 }
@@ -976,7 +1121,14 @@ function formGroupe({ nom }) {
   const nouveau = !nom;
   const g = nouveau ? { couleur: "#C8C8C8", type: "lieu" } : etat.donnees.groupes[nom];
   const c = nouveau ? { ev: 0, p: 0 } : comptesGroupes()[nom];
-  const autres = Object.keys(etat.donnees.groupes).filter((x) => x !== nom);
+  const autres = ordreGroupes().filter((x) => x !== nom);
+  // « Dans » : un lieu de premier niveau (pas pour une échelle, ni pour un lieu qui a lui-même des sous-lieux)
+  const enfants = nouveau ? [] : sousLieux(nom);
+  const parents = ordreGroupes().filter((x) => x !== nom && etat.donnees.groupes[x].type === "lieu" && !parentDe(x));
+  const dans = g.type !== "lieu" ? "" : enfants.length
+    ? `<div class="dn-champ"><span>${t("Dans")}</span><span class="dn-aide">${t("Premier niveau : ce lieu contient {n}.", { n: tn(enfants.length, "{n} sous-lieu", "{n} sous-lieux") })}</span></div>`
+    : `<label class="dn-champ"><span>${t("Dans <em>facultatif : en faire un sous-lieu d'un autre lieu</em>")}</span><select name="parent">
+        <option value="">${t("Aucun : premier niveau")}</option>${parents.map((x) => `<option${parentDe(nom) === x ? " selected" : ""}>${echapper(x)}</option>`).join("")}</select></label>`;
   const suppression = nouveau ? "" : `
     <div class="dn-suppression">
       <label class="dn-champ"><span>${t("En cas de suppression, ses {ev} et {p} passent dans", { ev: tn(c.ev, "{n} évènement", "{n} évènements"), p: tn(c.p, "{n} période", "{n} périodes") })}</span>
@@ -993,6 +1145,7 @@ function formGroupe({ nom }) {
       <label class="dn-champ"><span>${t("Couleur")}</span><span class="dn-couleur"><input type="color" name="couleur" value="${g.couleur.toLowerCase()}">
         <input type="text" name="couleur_texte" value="${echapper(g.couleur)}" spellcheck="false"></span></label>
     </div>
+    ${dans}
     <div class="dn-champ"><span>${t("Aperçu dans la frise")}</span><div class="dn-apercu"></div>
       <span class="dn-aide">${t("Choisir la couleur comme pour un fond blanc ; elle est adaptée au thème, clair ou sombre, à l'affichage.")}</span></div>
     ${suppression}
@@ -1073,6 +1226,7 @@ function formSerie() {
     </div>
     <div class="dn-boutons">
       <button class="bouton danger" data-action="supprimer">${ev ? tn(n, "Supprimer {n} évènement", "Supprimer les {n} évènements") : tn(n, "Supprimer {n} période", "Supprimer les {n} périodes")}</button>
+      <button class="bouton discret" data-action="copier-serie" title="${t("À coller dans « Ajouter plusieurs » d'une autre frise")}">${t("Copier en JSON")}</button>
       <button class="bouton discret" data-action="abandonner">${t("Tout décocher")}</button>
     </div>
   </div>`;
@@ -1113,6 +1267,12 @@ function saisiePanneau(e) {
     if (e.type === "change" && e.target.dataset.serie) marquerSerie(e.target.dataset.serie, e.target.checked);
     return;
   }
+  if (e.target.name === "json") {
+    clearTimeout(minuterieJson);
+    if (e.type === "change") lireJson(); else minuterieJson = setTimeout(lireJson, PAUSE_SAISIE * 2);
+    return;
+  }
+  if (champ("json")) delete champ("json").dataset.erreur;      // le formulaire reprend la main sur le JSON
   modifiee = true;
   const m = panneau.querySelector(".dn-message");
   if (m && m.classList.contains("ok")) { m.textContent = ""; m.className = "dn-message"; }
@@ -1122,6 +1282,12 @@ function saisiePanneau(e) {
     programmerApplication(e.target.name || e.target.dataset.source || "sources", texte ? PAUSE_SAISIE : 0);
   }
   if (e.target.name === "couleur") champ("couleur_texte").value = e.target.value.toUpperCase();
+  // nouveau sous-lieu : il reprend la couleur de son lieu tant qu'on n'en a pas choisi une
+  if (e.target.name === "parent" && !sel.nom && e.target.value && champ("couleur_texte").value.toUpperCase() === "#C8C8C8") {
+    const c = etat.donnees.groupes[e.target.value].couleur;
+    champ("couleur_texte").value = c;
+    champ("couleur").value = c.toLowerCase();
+  }
   if (e.target.name === "couleur_texte" && /^#[0-9a-f]{6}$/i.test(e.target.value)) champ("couleur").value = e.target.value.toLowerCase();
   if (e.target.name === "fin" && sel?.type === "relier") {
     const c = sel.candidats[Number(e.target.value)];
@@ -1147,6 +1313,7 @@ function majAides() {
       : v.mois ? t("Compris : {date}", { date: formatDate(v) }) : t("Année {a}", { a: formatAnnee(v.annee) });
   };
   aide("date"); aide("debut"); aide("fin", true); aide("fin_texte");
+  majJson();
   if (sel?.type === "lot") majApercuLot();
   const typeP = champ("type")?.value;
   panneau.querySelectorAll("[data-section-seule]").forEach((el) => (el.hidden = typeP !== "section"));
@@ -1175,6 +1342,7 @@ function clicPanneau(e) {
     choixThemes = choixThemes.includes(t) ? choixThemes.filter((x) => x !== t) : index.themes.filter((x) => x === t || choixThemes.includes(x));
     modifiee = true;
     dessinerChoixThemes();
+    majJson();
     if (direct()) programmerApplication("themes", 0);
     return;
   }
@@ -1185,6 +1353,7 @@ function clicPanneau(e) {
     else if (k > 0) { choixGroupes.splice(k, 1); choixGroupes.unshift(nom); }
     modifiee = true;
     dessinerChoixGroupes();
+    majJson();
     if (direct()) programmerApplication("groupes", 0);
     return;
   }
@@ -1209,7 +1378,9 @@ function clicPanneau(e) {
     b.previousElementSibling.querySelector("input").focus();
     modifiee = true;
   }
-  else if (action === "retirer-source") { b.closest(".dn-source").remove(); modifiee = true; if (direct()) programmerApplication("sources", 0); }
+  else if (action === "retirer-source") { b.closest(".dn-source").remove(); modifiee = true; majJson(); if (direct()) programmerApplication("sources", 0); }
+  else if (action === "copier-json") copierTexte(valeur("json"), b);
+  else if (action === "copier-serie") copierTexte(jsonSerie(), b);
   else if (action === "modele-json" || action === "modele-texte") {
     champ("lot").value = action === "modele-json" ? MODELE_JSON : EXEMPLE_LOT;
     modifiee = true;
@@ -1351,19 +1522,32 @@ function validerGroupe(vif = null) {
   const couleur = (/^#[0-9a-f]{6}$/i.test(valeur("couleur_texte")) ? valeur("couleur_texte") : valeur("couleur")).toUpperCase();
   const type = valeur("type");
   const ancien = sel.nom;
+  // « Dans » : seulement pour un lieu (une échelle, ou un lieu qui a des sous-lieux, reste au premier niveau)
+  const parent = type === "lieu" ? (champ("parent") ? valeur("parent") : etat.donnees.groupes[ancien]?.parent) || null : null;
   if (!nom) return erreur(t("Indique un nom."));
   if (nom === SANS_GROUPE || nom === t(SANS_GROUPE)) return erreur(t("« {nom} » est réservé.", { nom }));
   if (nom !== ancien && nom in etat.donnees.groupes) return erreur(t("Ce nom est déjà pris."));
   if (ancien && nom !== ancien) renommerDansFiltre(ancien, nom);
+  const avant = ancien ? etat.donnees.groupes[ancien] : null;
   modifier((d) => {
     const g = { couleur, type };
+    if (parent) g.parent = parent;
     const description = valeur("description").trim();
     if (description) g.description = description;
-    if (!ancien) { d.groupes[nom] = g; return; }
+    if (!ancien) {
+      // un nouveau sous-lieu se range après les autres sous-lieux de son lieu
+      d.groupes[nom] = g;
+      if (parent) d.groupes = Object.fromEntries(ordreGroupes(d.groupes).map((n) => [n, d.groupes[n]]));
+      return;
+    }
     d.groupes = Object.fromEntries(Object.entries(d.groupes).map(([k, v]) => (k === ancien ? [nom, g] : [k, v])));
-    if (nom !== ancien) remplacerGroupe(d, ancien, nom);
+    if (nom !== ancien) { remplacerGroupe(d, ancien, nom); changerParent(d, ancien, nom); }
+    if (type !== "lieu") changerParent(d, nom, null);                    // une échelle n'a pas de sous-lieux
+    if (parent !== (avant.parent || null)) d.groupes = Object.fromEntries(ordreGroupes(d.groupes).map((n) => [n, d.groupes[n]]));
     if (vif) sel.nom = nom;
   }, vif && { objet: "groupe", champ: vif.champ });
+  // le champ « Dans » dépend du type : le formulaire est redessiné quand le type change
+  if (vif && avant && avant.type !== type) ouvrir({ type: "g", nom });
   if (!vif) ouvrir({ type: "g", nom }, t(!ancien ? "Groupe ajouté." : nom !== ancien ? "Groupe renommé partout." : "Modification faite."));
 }
 
@@ -1396,15 +1580,29 @@ function renommerDansFiltre(ancien, nouveau) {
   if (!etat.filtre.has(ancien)) return;
   etat.filtre.delete(ancien);
   if (nouveau) etat.filtre.add(nouveau);
-  try { localStorage.setItem("filtre", JSON.stringify([...etat.filtre])); } catch {}
+  ecrireFrise("filtre", JSON.stringify([...etat.filtre]));
 }
 
+// Échange avec le voisin de même niveau ; un lieu se déplace avec ses sous-lieux (le fichier est rangé dans l'ordre affiché)
 function deplacerGroupe(nom, sens) {
-  const noms = Object.keys(etat.donnees.groupes), k = noms.indexOf(nom);
-  if (k + sens < 0 || k + sens >= noms.length) return;
-  noms.splice(k, 1);
-  noms.splice(k + sens, 0, nom);
+  const freres = voisinsGroupe(nom), k = freres.indexOf(nom);
+  if (k + sens < 0 || k + sens >= freres.length) return;
+  const autre = freres[k + sens];
+  const ordre = ordreGroupes().map((n) => (n === nom ? autre : n === autre ? nom : n));
+  // ordre des noms de premier niveau échangés, puis chacun suivi de ses sous-lieux
+  const noms = parentDe(nom) ? ordre : ordre.filter((n) => !parentDe(n)).flatMap((n) => [n, ...sousLieux(n)]);
   modifier((d) => { d.groupes = Object.fromEntries(noms.map((n) => [n, d.groupes[n]])); });
+}
+
+// Un lieu supprimé, renommé ou qui n'est plus de premier niveau : ses sous-lieux passent dans « nouveau » (un lieu de premier
+// niveau), ou reviennent au premier niveau
+function changerParent(d, ancien, nouveau) {
+  const valide = nouveau && d.groupes[nouveau]?.type === "lieu" && !d.groupes[nouveau].parent;
+  for (const [n, g] of Object.entries(d.groupes)) {
+    if (g.parent !== ancien || n === nouveau) continue;
+    if (valide) g.parent = nouveau;
+    else delete g.parent;
+  }
 }
 
 // ─── Thèmes : ajouter, renommer (partout), réordonner, supprimer ───
@@ -1453,7 +1651,7 @@ function renommerThemeDansFiltre(ancien, nouveau) {
   if (!etat.filtreThemes.has(ancien)) return;
   etat.filtreThemes.delete(ancien);
   if (nouveau) etat.filtreThemes.add(nouveau);
-  try { localStorage.setItem("filtre.themes", JSON.stringify([...etat.filtreThemes])); } catch {}
+  ecrireFrise("filtre.themes", JSON.stringify([...etat.filtreThemes]));
 }
 
 function deplacerTheme(nom, sens) {
@@ -1542,6 +1740,7 @@ function supprimer() {
     modifier((d) => {
       delete d.groupes[nom];
       remplacerGroupe(d, nom, remplacant);
+      changerParent(d, nom, remplacant);              // ses sous-lieux suivent le remplaçant, ou reviennent au premier niveau
     });
   }
   fermer();
@@ -1578,7 +1777,7 @@ function formLot() {
         <li>Deux dates « début → fin » : une <b>époque</b>, avec sa barre de durée.</li>
         <li>Les lignes vides et celles qui commencent par # sont ignorées.</li>
         <li>On peut aussi coller du JSON : une liste d'objets <code>date</code>, <code>nom</code>, <code>groupes</code>, <code>description</code>,
-        et si besoin <code>themes</code>, <code>fin</code>, <code>approx</code>, <code>important</code>, <code>regne</code>, <code>limite</code>, <code>sources</code>.</li>
+        et si besoin <code>themes</code>, <code>fin</code>, <code>approx</code>, <code>important</code>, <code>regne</code>, <code>limite</code>, <code>sources</code> ; <code>type</code> à <code>section</code> pour une ligne spéciale, avec <code>sous_titre</code>. C'est le format du bloc JSON de chaque fiche : on copie un élément d'une frise et on le colle ici, dans une autre.</li>
       </ul>`)}
     </div>
     <textarea name="lot" class="dn-lot" rows="9" spellcheck="false" placeholder="${echapper(EXEMPLE_LOT)}"></textarea>
@@ -1625,7 +1824,7 @@ function analyserLot(texte) {
       groupes: liste(o.groupes ?? o.groups),
       comment: o.description ?? o.comment, approx: o.approx, finApprox: o.fin_approx ?? o.end_approx, important: o.important,
       regne: o.regne ?? o.reign, limite: LIMITES[o.limite ?? o.limit] ?? o.limite ?? o.limit, sousTitre: o.sous_titre ?? o.subtitle, sources: o.sources,
-      themes: liste(o.themes),
+      themes: liste(o.themes), section: ["section", "ligne spéciale", "special line"].includes(String(o.type ?? "").toLowerCase()),
     }));
   }
   return s.split("\n").map((l, i) => [l.trim(), i + 1]).filter(([l]) => l && !l.startsWith("#")).map(([l, n]) => {
@@ -1663,7 +1862,7 @@ function verifierElement(n, o) {
       || etat.donnees.periodes.some((p) => instantDebut(p) === d.inst && meme(p.label))))
     avertissements.push(t("existe déjà à cette date"));
   return {
-    n, type: f ? "p" : "ev", debut: d.texte, annee: d.annee, dateDebut: d, dateFin: f, approx: sd.approx || !!o.approx,
+    n, type: f || o.section ? "p" : "ev", section: !!o.section, debut: d.texte, annee: d.annee, dateDebut: d, dateFin: f, approx: sd.approx || !!o.approx,
     fin: f?.texte ?? null, finAnnee: f?.annee ?? null, finApprox: sf.approx || !!o.finApprox,
     label, groupes, themes: index.themes.filter((t) => themes.includes(t)), comment: String(o.comment ?? "").trim() || null, important: !!o.important, regne: !!o.regne,
     limite: o.limite ?? null, sousTitre: o.sousTitre ?? null, sources: nettoyerSources(o.sources), erreurs, avertissements,
@@ -1686,7 +1885,7 @@ function majApercuLot() {
       <tr class="${l.erreurs.length ? "ko" : ""}">
         <td class="c-etat">${l.erreurs.length ? "✗" : l.avertissements.length ? "!" : "✓"}</td>
         <td class="c-date">${date(l)}</td>
-        <td>${echapper(l.label ?? "")}${l.type === "p" ? ` ${etiquette(t("époque"))}` : ""}
+        <td>${echapper(l.label ?? "")}${l.type === "p" ? ` ${etiquette(t(l.section ? "ligne spéciale" : "époque"))}` : ""}
           ${l.erreurs.map((m) => `<div class="c-erreur">${t("Ligne {n} : {erreur}", { n: l.n, erreur: echapper(m) })}</div>`).join("")}
           ${l.avertissements.map((m) => `<div class="c-avert">${echapper(m)}</div>`).join("")}</td>
         <td>${l.groupes?.length ? puces(l.groupes) : ""}${l.themes?.length ? `<div class="c-themes">${texteThemes(l.themes)}</div>` : ""}</td>
@@ -1701,11 +1900,11 @@ function validerLot() {
     for (const l of lignes) {
       if (l.type === "p") {
         const p = {
-          label: l.label, type: "epoque", groupes: l.groupes, sous_titre: l.sousTitre, debut: l.debut, debut_annee: l.annee,
+          label: l.label, type: l.section ? "section" : "epoque", groupes: l.groupes, sous_titre: l.sousTitre, debut: l.debut, debut_annee: l.annee,
           fin: l.fin, fin_annee: l.finAnnee, debut_deduit: false, regne: l.regne, comment: l.comment,
         };
         ecrireDate(p, l.dateDebut, "debut_");
-        ecrireDate(p, l.dateFin, "fin_");
+        if (l.dateFin) ecrireDate(p, l.dateFin, "fin_");
         marquer(p, "debut_approx", l.approx);
         marquer(p, "fin_approx", l.finApprox);
         marquerImportant(p, l.important);

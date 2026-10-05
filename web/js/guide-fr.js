@@ -85,6 +85,8 @@ export const GUIDE = [
       La première échelle de la liste est le niveau le plus large.</li>
     </ul>
     <p>L'ordre des groupes (flèches ↑ ↓) est celui du panneau de gauche et des colonnes d'époques.</p>
+    <p>Les lieux peuvent avoir <b>deux niveaux</b>, si on le souhaite : un lieu peut être rangé dans un autre (champ <b>Dans</b> de son formulaire),
+    « France » dans « Europe ». Le sous-lieu garde sa propre couleur ; choisir « Europe » dans le filtre montre aussi la France.</p>
     <p>Une nouvelle frise démarre avec des <b>thèmes</b> généraux (Civilisations, Pouvoir et politique, Guerres et conflits, Religion et croyances…),
     que l'on peut renommer, compléter ou supprimer dans le sous-onglet <b>Thèmes</b>.</p>
     <h4>2. Ajouter des évènements</h4>
@@ -123,7 +125,8 @@ export const GUIDE = [
       <li><b>Lignes spéciales</b> (éons, ères, périodes géologiques, périodes historiques) : bandeaux sur toute la largeur,
       d'autant plus clairs que le niveau est grand (éon le plus clair). Un losange les marque sur l'axe.</li>
       <li><b>Colonnes à gauche</b> : la durée de chaque ligne spéciale, une colonne par niveau, avec son nom écrit verticalement.</li>
-      <li><b>Barres à droite</b> : la durée des époques. Chaque lieu a sa colonne, mais deux lieux qui ne coexistent pas dans le temps se partagent la même (l'Égypte antique, finie en - 30, et le Monde arabo-musulman, né en 622), pour laisser plus de place aux évènements. Survoler une barre met en évidence son évènement, et inversement.</li>
+      <li><b>Barres à droite</b> : la durée des époques. Chaque lieu a sa colonne, mais deux lieux qui ne coexistent pas dans le temps se partagent la même (l'Égypte antique, finie en - 30, et le Monde arabo-musulman, né en 622), pour laisser plus de place aux évènements. Survoler une barre met en évidence son évènement, et inversement.
+      Les barres ne prennent jamais plus d'un tiers environ de la largeur : quand une frise a trop d'époques simultanées, celles marquées <b>★ Important</b> passent en premier, puis les plus longues ; les autres gardent leur pastille, et leur nombre est indiqué en haut (« 689 époques sans barre »). Filtrer un lieu les fait réapparaître. Dans ce cas, si le rangement par lieu ne tient pas, chaque barre va dans la première colonne libre : c'est alors sa couleur qui dit son lieu.</li>
       <li>Chaque barre porte sa <b>date de début</b> en haut et sa <b>date de fin</b> en bas (si elle est connue et s'il y a la place).</li>
       <li>Le <b>nom</b> des lignes spéciales et des époques est écrit dans leur barre, de haut en bas. Il reste au milieu
       de la partie visible pendant qu'on fait défiler la frise : on sait toujours dans quelle période on se trouve.
@@ -165,9 +168,12 @@ export const GUIDE = [
       <li>${touche("Alt")} + clic isole un groupe (ou revient à tout afficher s'il était seul).</li>
       <li><b>Tout afficher</b> retire le filtre.</li>
       <li>« Sans groupe » et « Sans thème » regroupent ce qui n'a pas encore de lieu ou de thème.</li>
+      <li><b>Sous-lieux</b> : en retrait sous leur lieu. Choisir un lieu montre aussi ses sous-lieux (ils restent en couleur dans le panneau),
+      et son nombre d'évènements les compte. Si la frise a beaucoup de lieux, on peut replier les sous-lieux (Données, Réglages) :
+      une flèche devant chaque lieu les montre ou les cache.</li>
       <li>Survoler un lieu, un thème ou une échelle affiche sa <b>description</b> (ce qu'il couvre), son nombre d'éléments
       et quelques <b>exemples</b> tirés au hasard, différents à chaque survol.</li>
-      <li>Le filtre est retenu d'une visite à l'autre.</li>
+      <li>Le filtre est retenu d'une visite à l'autre, frise par frise : chaque frise retrouve le sien.</li>
       <li><b>‹</b>, à droite du titre « Filtre », replie le panneau en une fine bande (pratique sur un petit écran) ; un clic sur la bande le rouvre.
       Un point rouge sur la bande rappelle qu'un filtre est actif. Sur un écran étroit, le panneau est replié d'office.</li>
     </ul>`],
@@ -187,6 +193,8 @@ export const GUIDE = [
       <li>Les évènements hors des plages ne sont pas comptés ; leur nombre est indiqué en haut.</li>
       <li>Survoler un segment donne le groupe, la tranche et le nombre. Cliquer sur une barre ouvre la frise au début de la tranche.</li>
       <li>Le filtre du panneau de gauche retire des groupes de la pile.</li>
+      <li>S'il y a des sous-lieux, chacun compte par défaut dans la couleur de son lieu de premier niveau ; Données, Réglages permet
+      de leur donner leur propre part de la barre.</li>
     </ul>`],
 
   ["jeu", "Jeu", `
@@ -269,6 +277,14 @@ export const GUIDE = [
       <li>On peut aussi coller du JSON (bouton <b>Modèle JSON</b>), qui permet en plus l'étoile, le règne, les sources…</li>
       <li>Tout l'ajout s'annule d'un seul coup avec <b>Annuler</b>.</li>
     </ul>
+    <h4>Copier des éléments d'une frise à l'autre (JSON)</h4>
+    <ul>
+      <li>En bas de la fiche d'un évènement ou d'une période, le bloc <b>JSON</b> (cliquer pour le déplier) montre l'élément
+      dans le format d'« Ajouter plusieurs ». On peut aussi le modifier là : les champs de la fiche suivent, et une erreur est signalée sans rien changer.</li>
+      <li><b>Copier</b>, puis, dans l'autre frise, <b>Ajouter plusieurs</b> et coller. Pour plusieurs éléments à la fois :
+      les cocher, puis <b>Copier en JSON</b> dans le panneau de modification en série.</li>
+      <li>Les groupes et les thèmes doivent exister dans la frise d'arrivée (sinon l'aperçu le signale) : les créer d'abord, ou corriger leur nom dans le JSON.</li>
+    </ul>
     <h4>Faire d'un évènement un début d'époque</h4>
     <p>Deux façons :</p>
     <ul>
@@ -295,7 +311,11 @@ export const GUIDE = [
       <li><b>Ordre</b> : flèches ↑ ↓ ; c'est l'ordre du panneau de gauche et des colonnes d'époques.
       Pour les échelles, c'est aussi la <b>hiérarchie des lignes spéciales</b> : la première échelle est le niveau le plus large (niveau 1),
       les suivantes de plus en plus fines ; la table l'indique (« Échelle · niveau 2 »). Le niveau d'une ligne spéciale est celui de son groupe.</li>
-      <li><b>Supprimer</b> : ses évènements passent dans le groupe choisi, ou deviennent sans groupe.</li>
+      <li><b>Dans</b> : range le lieu dans un autre lieu, qui doit être de premier niveau (deux niveaux au plus). Les flèches ↑ ↓
+      déplacent un sous-lieu parmi les sous-lieux du même lieu, et un lieu avec tous ses sous-lieux. Un lieu qui a des sous-lieux
+      reste au premier niveau.</li>
+      <li><b>Supprimer</b> : ses évènements passent dans le groupe choisi, ou deviennent sans groupe. Ses sous-lieux passent dans
+      le groupe choisi s'il est un lieu de premier niveau, sinon ils reviennent au premier niveau.</li>
     </ul>
     <h4>Thèmes</h4>
     <ul>
@@ -371,6 +391,7 @@ export const GUIDE = [
       <dt>Important</dt><dd>Un évènement ou une période marqué d'une étoile ★, pour le repérer d'un coup d'œil. Une époque créée par « Relier à une fin » garde l'étoile de son début.</dd>
       <dt>Ligne spéciale</dt><dd>Un éon, une ère, une période géologique ou historique : bandeau sur toute la largeur.</dd>
       <dt>Groupe</dt><dd>Un <b>lieu</b> (Rome, Chine…) ou une <b>échelle</b> (éon, ère…). Il donne la couleur.</dd>
+      <dt>Sous-lieu</dt><dd>Un lieu rangé dans un autre (« France » dans « Europe ») ; il garde sa couleur.</dd>
       <dt>Thème</dt><dd>Le sujet d'un évènement (Guerres et conflits, Religion et croyances…), indépendant du lieu. Sans couleur ; sert à filtrer.</dd>
       <dt>Début déduit</dt><dd>Début provisoire d'une ligne spéciale, faute de mieux : à vérifier.</dd>
     </dl>`],

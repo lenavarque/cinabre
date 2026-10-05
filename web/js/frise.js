@@ -5,6 +5,7 @@ import {
   etat, index, passeFiltre, filtreActif, couleurDe, groupe, echapper, formatAnnee,
   normaliser, parserDate, rayures, dateAffichee, texteDate, SANS_GROUPE,
   instant, instantDe, instantDebut, instantFin, formatDate, regroupement, detail, uneSeuleLigne, rappelContinu,
+  lireFrise, ecrireFrise,
 } from "./donnees.js";
 import { fermer as fermerPopup } from "./popup.js";
 import { t, tn } from "./langue.js";
@@ -14,6 +15,8 @@ const H = { date: 24, section: 32, sep: 15 };      // hauteur des lignes (px)
 const CONTEXTE_DISTANCE = 10;                       // réglage « brièvement » : une ligne spéciale reste rappelée 10 lignes après son passage
 const BANDE = { pas: 19, marge: 8 };                // colonnes d'échelle à gauche (rubans de 16 px)
 const EPOQUE = { pas: 19, marge: 8 };               // colonnes d'époques à droite (rubans de 16 px)
+const PART_EPOQUES = 0.3;                           // les barres d'époques prennent au plus 30 % de la largeur de la frise…
+const MIN_COLONNES_EPOQUES = 6;                     // … mais toujours au moins 6 colonnes
 const ECART_LIEUX = 14;                             // px d'écart vertical entre deux lieux qui partagent une colonne
 const NOM_TRES_PETIT = 18;                          // px en dessous desquels le nom lui-même est masqué
 const LARGEUR_EV = 150;                             // px : largeur visée par évènement quand une date passe à la ligne
@@ -92,6 +95,9 @@ export function init(el, application) {
   new ResizeObserver(() => {
     if (!m || !visible()) return;
     if (calculerParRangee() !== parRangee) return rendre();   // la largeur change le nombre d'évènements par rangée
+    // la largeur permise aux époques change, et elles n'y tenaient pas toutes (ou n'y tiennent plus)
+    const maxCol = maxColonnesEpoques();
+    if (maxCol !== m.maxColonnes && (m.epoquesSansBarre || m.nColonnesEpoques > maxCol)) return rendre();
     mesurerRubans(); dessinerCarte(); dessinerMarques(); surDefilement();
   }).observe(carte);
 }
@@ -263,6 +269,14 @@ function rendre() {
 
   const nEv = m.dates.reduce((s, l) => s + l.evs.length + l.epoques.length, 0);
   compteEl.textContent = `${tn(m.dates.length, "{n} date", "{n} dates")}, ${tn(nEv, "{n} évènement", "{n} évènements")}${filtreActif() ? " " + t("(filtrés)") : ""}`;
+  // époques sans barre faute de place : mention discrète, l'explication en infobulle
+  if (m.epoquesSansBarre) {
+    const s = document.createElement("span");
+    s.className = "sans-barre";
+    s.textContent = ` · ${tn(m.epoquesSansBarre, "{n} époque sans barre", "{n} époques sans barre")}`;
+    s.title = t("Pas assez de place pour toutes les barres d'époques : les époques marquées ★, puis les plus longues, passent en premier. Les autres gardent leur pastille ; filtrer un lieu les fait apparaître.");
+    compteEl.append(s);
+  }
 
   construireMenu();
   preparerRappel();
@@ -292,14 +306,79 @@ function dessinerColonnes() {
   bandesEl.innerHTML = html;
 
   // Époques (droite) : une colonne par lieu, sous-colonnes si chevauchement
-  const parGroupe = new Map();
+  const toutes = [];
   for (const l of m.dates) for (const pid of l.epoques) {
     const p = index.periodes.get(pid);
     const y0 = m.y[l.i] + 4;
     const y1 = Math.max(y0 + 10, (p.fin_annee != null ? yDerniere(instantFin(p), l.i) : null) ?? m.y[l.i + 1]) - 4;
-    const g = p.groupes[0] || SANS_GROUPE;
+    toutes.push({ pid, p, y0, y1 });
+  }
+  // Largeur limitée (PART_EPOQUES de la frise) : si toutes les barres ne tiennent pas, on garde les plus prioritaires
+  // (★ d'abord, puis les plus longues) ; les autres n'ont que leur pastille.
+  const maxColonnes = maxColonnesEpoques();
+  let disposition = disposerEpoques(toutes);
+  m.epoquesSansBarre = 0;
+  if (disposition.nColonnes > maxColonnes) {
+    const duree = (p) => (p.fin_annee ?? new Date().getFullYear()) - (p.debut_annee ?? 0);
+    const tri = [...toutes].sort((a, b) => !!b.p.important - !!a.p.important || duree(b.p) - duree(a.p) || a.y0 - b.y0);
+    // 1. Par ordre de priorité, une époque est retenue si, sur toute sa hauteur, moins de maxColonnes barres déjà
+    //    retenues la chevauchent
+    const retenues = [];
+    for (const b of tri) {
+      const chevauchent = retenues.filter((r) => r.y0 < b.y1 + 3 && b.y0 < r.y1 + 3);
+      let max = 0;
+      for (const r of chevauchent) {
+        const y = Math.max(r.y0, b.y0);
+        max = Math.max(max, chevauchent.filter((s) => s.y0 <= y && y < s.y1 + 3).length);
+      }
+      if (max < maxColonnes) retenues.push(b);
+    }
+    // 2. Rangement par lieu s'il tient ; sinon rangement libre (chaque barre dans la première colonne libre à sa
+    //    hauteur, la couleur disant le lieu), qui tient toujours : jamais plus de maxColonnes barres à la fois
+    disposition = disposerEpoques(retenues);
+    if (disposition.nColonnes > maxColonnes) disposition = disposerLibre(retenues);
+    m.epoquesSansBarre = toutes.length - retenues.length;
+  }
+  const { blocs, nColonnes } = disposition;
+  Object.assign(m, { maxColonnes, nColonnesEpoques: nColonnes });
+  html = "";
+  for (const { g, barres, x } of blocs)
+    for (const b of barres)
+      html += `<div class="barre-ep ruban${b.p.regne ? " regne" : ""}" data-pop="${b.pid}" data-epoque="${b.pid}" style="--ct:${g.affichage};top:${b.y0}px;height:${Math.max(6, b.y1 - b.y0)}px;left:${EPOQUE.marge - 4 + (x + b.k) * EPOQUE.pas}px">${contenuRuban(b.p)}</div>`;
+  epoquesEl.innerHTML = html;
+  const lEpoques = nColonnes ? 2 * EPOQUE.marge - 7 + nColonnes * EPOQUE.pas : 0;
+
+  racine.style.setProperty("--l-bandes", `${lBandes}px`);
+  // colonne des dates un peu plus large pour les dates au jour (« 14 juil. 1789 »)
+  const auJour = m.dates.some((l) => l.prec?.jour) || m.lignes.some((l) => l.type === "section" && l.p.debut_jour);
+  racine.style.setProperty("--l-date", auJour ? "112px" : m.dates.some((l) => l.prec) ? "98px" : "");
+  racine.style.setProperty("--l-epoques", `${lEpoques}px`);
+}
+
+const maxColonnesEpoques = () => Math.max(MIN_COLONNES_EPOQUES, Math.floor(contenu.clientWidth * PART_EPOQUES / EPOQUE.pas));
+
+// Rangement libre : par ordre d'apparition, chaque barre va dans la première colonne libre à sa hauteur
+// (autant de colonnes que de barres simultanées, au plus) ; un bloc par lieu pour la couleur
+function disposerLibre(toutes) {
+  const fins = [], blocs = new Map();
+  for (const b of [...toutes].sort((a, c) => a.y0 - c.y0)) {
+    let k = fins.findIndex((y1) => y1 <= b.y0 - 3);
+    if (k < 0) k = fins.length;
+    fins[k] = b.y1;
+    const g = groupe(b.p.groupes[0] || SANS_GROUPE);
+    if (!blocs.has(g)) blocs.set(g, { g, barres: [], x: 0 });
+    blocs.get(g).barres.push({ ...b, k });
+  }
+  return { blocs: [...blocs.values()], nColonnes: fins.length };
+}
+
+// Range des barres d'époques : sous-colonnes dans chaque lieu, puis lieux côte à côte (placerBlocs)
+function disposerEpoques(toutes) {
+  const parGroupe = new Map();
+  for (const b of toutes) {
+    const g = b.p.groupes[0] || SANS_GROUPE;
     if (!parGroupe.has(g)) parGroupe.set(g, []);
-    parGroupe.get(g).push({ pid, p, y0, y1 });
+    parGroupe.get(g).push({ ...b });
   }
   // 1. Dans chaque lieu : sous-colonnes quand ses époques se chevauchent ; chaque sous-colonne retient sa plage [y0, y1]
   const blocs = [];
@@ -322,19 +401,7 @@ function dessinerColonnes() {
     blocs.push({ g, barres, cols, rang: blocs.length });
   }
   // 2. Les lieux se partagent les colonnes quand leurs périodes ne se recouvrent pas dans le temps
-  const nColonnes = placerBlocs(blocs);
-  html = "";
-  for (const { g, barres, x } of blocs)
-    for (const b of barres)
-      html += `<div class="barre-ep ruban${b.p.regne ? " regne" : ""}" data-pop="${b.pid}" data-epoque="${b.pid}" style="--ct:${g.affichage};top:${b.y0}px;height:${Math.max(6, b.y1 - b.y0)}px;left:${EPOQUE.marge - 4 + (x + b.k) * EPOQUE.pas}px">${contenuRuban(b.p)}</div>`;
-  epoquesEl.innerHTML = html;
-  const lEpoques = nColonnes ? 2 * EPOQUE.marge - 7 + nColonnes * EPOQUE.pas : 0;
-
-  racine.style.setProperty("--l-bandes", `${lBandes}px`);
-  // colonne des dates un peu plus large pour les dates au jour (« 14 juil. 1789 »)
-  const auJour = m.dates.some((l) => l.prec?.jour) || m.lignes.some((l) => l.type === "section" && l.p.debut_jour);
-  racine.style.setProperty("--l-date", auJour ? "112px" : m.dates.some((l) => l.prec) ? "98px" : "");
-  racine.style.setProperty("--l-epoques", `${lEpoques}px`);
+  return { blocs, nColonnes: placerBlocs(blocs) };
 }
 
 // Frise sans aucune ligne : nouvelle frise, ou filtre qui ne laisse rien
@@ -459,18 +526,21 @@ function contenuRuban(p) {
 // marges pour les dates, longueur maximale du nom, et « collant » si le ruban dépasse la hauteur de l'écran.
 function mesurerRubans() {
   const ecran = defil.clientHeight;
-  for (const el of racine.querySelectorAll(".ruban")) {
-    const nom = el.querySelector(".ruban-nom"), hauteur = parseFloat(el.style.height);
-    const debut = el.querySelector(".ruban-date.debut"), fin = el.querySelector(".ruban-date.fin");
-    nom.dataset.longueur ??= nom.offsetHeight;          // longueur naturelle, mesurée une fois
+  // toutes les mesures d'abord, puis toutes les modifications : une seule mise en page (et non une par ruban)
+  const rubans = [...racine.querySelectorAll(".ruban")].map((el) => ({
+    el, nom: el.querySelector(".ruban-nom"), hauteur: parseFloat(el.style.height),
+    debut: el.querySelector(".ruban-date.debut"), fin: el.querySelector(".ruban-date.fin"),
+  }));
+  for (const r of rubans) if (r.debut && r.fin) r.debut.hidden = r.fin.hidden = false;
+  for (const r of rubans) {
+    r.nom.dataset.longueur ??= r.nom.offsetHeight;    // longueur naturelle, mesurée une fois
+    if (r.debut && r.fin) { r.lD = r.debut.offsetHeight + 6; r.lF = r.fin.offsetHeight + 6; }
+  }
+  for (const { el, nom, hauteur, debut, fin, lD, lF } of rubans) {
     // Les deux dates ou aucune, et seulement si le nom entier tient encore entre elles (priorité au nom).
     const besoinNom = Number(nom.dataset.longueur);
     let lDebut = 0, lFin = 0;
-    if (debut && fin) {
-      debut.hidden = fin.hidden = false;
-      const lD = debut.offsetHeight + 6, lF = fin.offsetHeight + 6;
-      if (hauteur - lD - lF - 4 >= besoinNom) { lDebut = lD; lFin = lF; }
-    }
+    if (debut && fin && hauteur - lD - lF - 4 >= besoinNom) { lDebut = lD; lFin = lF; }
     if (debut) debut.hidden = !lDebut;
     if (fin) fin.hidden = !lFin;
     el.style.paddingTop = `${lDebut}px`;
@@ -589,9 +659,9 @@ function anneeEnHaut() {
 let minuterieAncre;
 function memoriserAncre() {
   clearTimeout(minuterieAncre);
-  minuterieAncre = setTimeout(() => { const a = anneeEnHaut(); if (a != null) localStorage.setItem("frise.ancre", a); }, 300);
+  minuterieAncre = setTimeout(() => { const a = anneeEnHaut(); if (a != null) ecrireFrise("frise.ancre", a); }, 300);
 }
-function lireAncre() { const v = localStorage.getItem("frise.ancre"); return v == null ? null : Number(v); }
+function lireAncre() { const v = lireFrise("frise.ancre"); return v == null ? null : Number(v); }
 
 function allerY(y, comportement = MOUVEMENT) { defil.scrollTo({ top: Math.max(0, y), behavior: comportement }); }
 export function allerAnnee(annee, comportement) { if (m) allerY(yPremiere(instant(annee)), comportement); }

@@ -22,10 +22,10 @@ application, read-only. The events themselves are written in French; the interfa
 
 - **Timeline**: one line per date with its events side by side, eras as vertical ribbons, the great periods (eons,
   geological eras, historical periods) as special lines, and a minimap to move around.
-- **Filter** by place and theme, **search** names and descriptions.
+- **Filter** by place and theme, **search** names and descriptions. Places can have two levels (France within Europe).
 - **Statistics**: the number of events per range of years and per place.
 - **Data**: tables to add and correct events, link a start date to an end date, edit several events at once or paste
-  a whole list in one go; undo with Ctrl+Z.
+  a whole list in one go, copy items from one timeline to another as JSON; undo with Ctrl+Z.
 - Dates to the year, month or day, approximate or not, down to billions of years ("2.9 Ga").
 - Several timelines in the same folder, with an automatic backup copy each time you save.
 - **Export** a timeline as a single read-only HTML page that opens in any browser.

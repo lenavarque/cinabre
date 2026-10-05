@@ -244,8 +244,21 @@ body.panneau-replie .panneau { width: 26px; padding: 0; overflow: hidden; }
 .pg-item i { flex: none; width: 12px; height: 12px; border-radius: 2px; background: var(--ct); }
 .pg-item .nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pg-item .n { margin-left: auto; padding-left: 8px; font-size: 12px; color: var(--texte-3); font-variant-numeric: tabular-nums; }
-.filtre-actif .pg-item:not(.choisi) { opacity: 0.35; }
+.filtre-actif .pg-item:not(.choisi, .inclus) { opacity: 0.35; }
 .pg-item.choisi { background: color-mix(in srgb, var(--ct) 13%, transparent); font-weight: 600; }
+/* Sous-lieux : en retrait sous leur lieu ; « inclus » quand leur lieu est coché */
+.pg-item.sous { padding-left: 26px; }
+.pg-item.sous i { width: 9px; height: 9px; margin: 0 1.5px; }
+.pg-item.inclus { background: color-mix(in srgb, var(--ct) 6%, transparent); }
+/* Sous-lieux repliés (Réglages) : une flèche devant chaque lieu qui en a */
+.pg-item.pli { padding-left: 22px; }
+.pg-item.pli.sous { padding-left: 38px; }
+.pg-parent { position: relative; }
+.pg-pli {
+  position: absolute; left: 2px; top: 3px; z-index: 1; width: 18px; height: 19px; padding: 0;
+  background: none; border: 0; border-radius: 2px; color: var(--texte-2); font-size: 12px; line-height: 19px; cursor: pointer;
+}
+.pg-pli:hover { color: var(--texte); background: var(--ardoise-2); }
 /* Thèmes : neutres (la couleur reste aux lieux), rond creux, plein quand le thème est choisi */
 .pg-item.theme { --ct: var(--texte-2); color: var(--texte-2); }
 .pg-item.theme:hover { color: var(--texte); }
@@ -584,6 +597,7 @@ table.dn { width: 100%; border-collapse: collapse; table-layout: fixed; font-siz
 .puce-g { display: inline-flex; align-items: center; gap: 5px; margin-right: 10px; color: var(--ct); font-size: 13px; }
 .puce-g i { flex: none; width: 9px; height: 9px; border-radius: 1px; background: var(--ct); }
 .puce-g.aucun { color: var(--texte-3); }
+td.c-sous-lieu { padding-left: 26px; }
 .etiq { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 1px; background: var(--ardoise-2); color: var(--texte-2); font-size: 11.5px; line-height: 18px; }
 .etiq.or { color: var(--or); background: color-mix(in srgb, var(--or) 13%, transparent); }
 .etiq.alerte { color: var(--accent); background: color-mix(in srgb, var(--accent) 13%, transparent); }
@@ -678,6 +692,14 @@ table.dn { width: 100%; border-collapse: collapse; table-layout: fixed; font-siz
 .dn-source-ligne { display: flex; gap: 4px; align-items: center; }
 .dn-source-ligne input { flex: 1; }
 .dn-source textarea { font-style: italic; }
+
+/* JSON d'un élément (repliable), pour le copier dans une autre frise */
+.dn-json summary { width: fit-content; font-size: 12.5px; color: var(--texte-2); cursor: pointer; }
+.dn-json summary:hover { color: var(--texte); }
+.dn-json summary em { font-style: normal; margin-left: 6px; color: var(--texte-3); }
+.dn-json[open] summary { margin-bottom: 6px; }
+.dn-json textarea { width: 100%; line-height: 1.5; white-space: pre; overflow-x: auto; font-size: 13px; }
+.dn-json .dn-aide { display: block; margin: 4px 0; }
 
 /* Ajout en série */
 .dn-panneau.large { width: 580px; }

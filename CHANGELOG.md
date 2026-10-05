@@ -5,10 +5,27 @@ and version numbers follow [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Places on two levels, if you wish: a place can be filed under another one (France within Europe). Choosing the larger
+  place in the filter also shows the smaller ones. In the settings, sub-places can be collapsed in the panel, and the
+  statistics can stack them in their parent's colour or on their own.
+- A JSON block at the bottom of each event or period form, to edit it as JSON or copy it into another timeline
+  (paste it in "Add several"). Ticked rows can be copied as JSON in one go. "Add several" now accepts special lines
+  (`"type": "section"`).
+
 ### Changed
+
+- The filter, the position in the timeline and the expanded places are remembered for each timeline separately.
+- Era bars take at most about a third of the width. When there are too many at once, eras marked ★, then the longest
+  ones, keep their bar; the others keep their label, and their number is shown at the top.
 
 - The documentation is in English, and the example pages are published in English (French under `/fr/`).
 - The interface follows the browser's language on first visit (French if the browser is in French, English otherwise).
+
+### Fixed
+
+- Much faster drawing of timelines with many eras.
 
 ## [0.1.0] - 2026-09-29
 

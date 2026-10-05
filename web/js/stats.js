@@ -1,6 +1,7 @@
 // Onglet Statistiques : nombre d'évènements par tranche d'années, en barres empilées par groupe.
 
-import { etat, index, formatAnnee, passeFiltre, filtreActif, nomAffiche, SANS_GROUPE, LECTURE_SEULE, plagesStats, tranchesStats } from "./donnees.js";
+import { etat, index, formatAnnee, passeFiltre, filtreActif, nomAffiche, SANS_GROUPE, LECTURE_SEULE, plagesStats, tranchesStats,
+  parentDe, sousLieux, empilerParSousLieu } from "./donnees.js";
 import { gabarit, fermer as fermerPopup } from "./popup.js";
 import { t, tn } from "./langue.js";
 
@@ -44,10 +45,14 @@ function compter() {
   TRANCHES = tranchesStats(plagesStats().plages);
   const comptes = TRANCHES.map(() => new Map());
   let avant = 0, apres = 0, entre = 0;
+  // un sous-lieu compte dans son lieu de premier niveau, sauf réglage contraire (Données, Réglages)
+  const parSousLieu = empilerParSousLieu();
+  const niveau = (x) => (parSousLieu ? x : parentDe(x) ?? x);
   const ajouter = (annee, groupes, themes) => {
     if (!passeFiltre(groupes, themes)) return;
     const gs = groupes && groupes.length ? groupes : [SANS_GROUPE];
-    const g = etat.filtre.size ? gs.find((x) => etat.filtre.has(x)) : gs[0];
+    const visible = (x) => etat.filtre.has(x) || etat.filtre.has(parentDe(x));
+    const g = niveau(etat.filtre.size ? gs.find(visible) : gs[0]);
     if (!g || annee == null) return;
     if (!TRANCHES.length) return;
     if (annee < TRANCHES[0].debut) return avant++;
@@ -154,7 +159,7 @@ export function contenuPopup(id) {
     couleur: g.affichage,
     ancrage: "souris",
     html: gabarit({
-      groupe: nomAffiche(g.nom), date: tranche,
+      groupe: nomAffiche(g.nom) + (!empilerParSousLieu() && sousLieux(g.nom).length ? " " + t("et ses sous-lieux") : ""), date: tranche,
       titre: tn(s.n, "{n} évènement", "{n} évènements"),
       pied: t("{n} dans la tranche, tous groupes affichés confondus. Clic : voir dans la frise.", { n: b.total }),
     }),

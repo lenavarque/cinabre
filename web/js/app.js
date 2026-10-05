@@ -3,7 +3,8 @@
 import {
   etat, index, charger, enregistrer, annuler, modifier, ecouter, emettre, echapper, couleurDe,
   formatDuree, groupe, dateAffichee, filtreActif, descriptionTheme, SANS_GROUPE, SANS_THEME, LECTURE_SEULE, EXPORTE_LE,
-  nomAffiche, mettreDeCote, dureePeriode, formatAnnee, jeuActif, themeClair, indexer,
+  nomAffiche, mettreDeCote, dureePeriode, formatAnnee, jeuActif, themeClair, indexer, parentDe, sousLieux, sousLieuxReplies,
+  lireFrise, ecrireFrise,
 } from "./donnees.js";
 import { t, tn, langue, LANGUES, choisirLangue, traduirePage, dateCourte } from "./langue.js";
 import { exporterHtml } from "./export.js";
@@ -67,8 +68,6 @@ async function demarrer() {
   initLangues();
   initTheme();
   iconeOnglet();
-  try { etat.filtre = new Set(JSON.parse(localStorage.getItem("filtre") || "[]")); } catch { etat.filtre = new Set(); }
-  try { etat.filtreThemes = new Set(JSON.parse(localStorage.getItem("filtre.themes") || "[]")); } catch { etat.filtreThemes = new Set(); }
   initPopup(contenuPopup);
   initBarre();
   window.addEventListener("hashchange", router);
@@ -85,7 +84,10 @@ async function demarrer() {
       <p>${t("Vérifie que <code>serveur.py</code> est lancé et que <code>dates.json</code> se trouve à côté.")}</p>`;
     return;
   }
-  // Retire les groupes du filtre qui n'existent plus
+  // Filtre retenu pour cette frise (chaque frise a le sien), sans les groupes qui n'existent plus
+  try { etat.filtre = new Set(JSON.parse(lireFrise("filtre") || "[]")); } catch { etat.filtre = new Set(); }
+  try { etat.filtreThemes = new Set(JSON.parse(lireFrise("filtre.themes") || "[]")); } catch { etat.filtreThemes = new Set(); }
+  try { ["filtre", "filtre.themes", "frise.ancre", "panneau.ouverts"].forEach((k) => localStorage.removeItem(k)); } catch {}   // anciennes clés, communes à toutes les frises
   etat.filtre = new Set([...etat.filtre].filter((g) => index.groupes.some((x) => x.nom === g)));
   etat.filtreThemes = new Set([...etat.filtreThemes].filter((t) => t === SANS_THEME || index.themes.includes(t)));
   panneauGroupes();
@@ -366,15 +368,28 @@ function panneauGroupes() {
   const compte = new Map(), compteT = new Map();
   const plus = (m, k) => m.set(k, (m.get(k) || 0) + 1);
   const ajoute = (o) => {
-    (o.groupes?.length ? o.groupes : [SANS_GROUPE]).forEach((g) => plus(compte, g));
+    const gs = o.groupes?.length ? o.groupes : [SANS_GROUPE];
+    // un lieu de premier niveau compte aussi les éléments de ses sous-lieux (une fois chacun)
+    new Set(gs.flatMap((g) => [g, parentDe(g)]).filter(Boolean)).forEach((g) => plus(compte, g));
     if (o.type !== "section") (o.themes?.length ? o.themes : [SANS_THEME]).forEach((t) => plus(compteT, t));
   };
   d.dates.forEach((date) => date.evenements.forEach(ajoute));
   d.periodes.forEach(ajoute);
 
-  const item = (g) => `
-    <button class="pg-item${etat.filtre.has(g.nom) ? " choisi" : ""}" data-groupe="${echapper(g.nom)}" data-pop="g:${echapper(g.nom)}" style="--ct:${g.affichage}">
+  // Sous-lieux : en retrait sous leur lieu ; repliés si la frise le demande (une flèche les montre, choix retenu)
+  const replies = sousLieuxReplies(), ouverts = lieuxOuverts();
+  const ouvert = (nom) => !replies || ouverts.has(nom) || sousLieux(nom).some((s) => etat.filtre.has(s));
+  const item = (g) => {
+    const parent = parentDe(g.nom), enfants = g.type === "lieu" && !parent ? sousLieux(g.nom).length : 0;
+    const inclus = parent && etat.filtre.has(parent);
+    const bouton = `<button class="pg-item${etat.filtre.has(g.nom) ? " choisi" : ""}${inclus ? " inclus" : ""}${parent ? " sous" : ""}${replies && g.type !== "echelle" ? " pli" : ""}"
+      data-groupe="${echapper(g.nom)}" data-pop="g:${echapper(g.nom)}" style="--ct:${g.affichage}">
       <i></i><span class="nom">${echapper(nomAffiche(g.nom))}</span><span class="n">${compte.get(g.nom) || 0}</span></button>`;
+    if (parent && !ouvert(parent)) return "";
+    if (!replies || !enfants) return bouton;
+    const o = ouvert(g.nom), titre = t(o ? "Replier ses sous-lieux" : "Déplier ses {n} sous-lieux", { n: enfants });
+    return `<div class="pg-parent"><button class="pg-pli" data-pli="${echapper(g.nom)}" aria-expanded="${o}" title="${titre}" aria-label="${titre}">${o ? "▾" : "▸"}</button>${bouton}</div>`;
+  };
   const itemTheme = (t) => `
     <button class="pg-item theme${etat.filtreThemes.has(t) ? " choisi" : ""}" data-theme="${echapper(t)}" data-pop="t:${echapper(t)}">
       <i></i><span class="nom">${echapper(nomAffiche(t))}</span><span class="n">${compteT.get(t) || 0}</span></button>`;
@@ -398,6 +413,8 @@ function panneauGroupes() {
   panneau.onclick = (e) => {
     if (e.target.closest(".pg-replier")) return basculerPanneau(true);
     if (e.target.closest(".pg-tout")) return changerFiltre(new Set(), new Set());
+    const pli = e.target.closest(".pg-pli");
+    if (pli) return basculerLieu(pli.dataset.pli);
     const b = e.target.closest(".pg-item");
     if (!b) return;
     const theme = "theme" in b.dataset, nom = theme ? b.dataset.theme : b.dataset.groupe;
@@ -408,13 +425,23 @@ function panneauGroupes() {
   };
 }
 
+// Lieux dépliés dans le panneau quand les sous-lieux sont repliés (Réglages) : retenus dans le navigateur
+function lieuxOuverts() {
+  try { return new Set(JSON.parse(lireFrise("panneau.ouverts")) || []); } catch { return new Set(); }
+}
+function basculerLieu(nom) {
+  const o = lieuxOuverts();
+  o.has(nom) ? o.delete(nom) : o.add(nom);
+  ecrireFrise("panneau.ouverts", JSON.stringify([...o]));
+  panneauGroupes();
+  $(`#groupes .pg-pli[data-pli="${CSS.escape(nom)}"]`)?.focus();
+}
+
 function changerFiltre(groupes, themes) {
   etat.filtre = groupes;
   etat.filtreThemes = themes;
-  try {
-    localStorage.setItem("filtre", JSON.stringify([...groupes]));
-    localStorage.setItem("filtre.themes", JSON.stringify([...themes]));
-  } catch {}
+  ecrireFrise("filtre", JSON.stringify([...groupes]));
+  ecrireFrise("filtre.themes", JSON.stringify([...themes]));
   panneauGroupes();
   Object.values(VUES).forEach((v) => v.majFiltre?.());
   emettre("filtre");
@@ -489,9 +516,10 @@ const dateExemple = (texte, mois, annee, approx) => (mois ? `${approx ? "~ " : "
 const NB_EXEMPLES = 4;
 function popupPanneau(sorte, nom) {
   const theme = sorte === "t", g = theme ? null : groupe(nom);
+  const enfants = theme ? [] : sousLieux(nom), famille = [nom, ...enfants];   // un lieu compte aussi ses sous-lieux
   const concerne = theme
     ? (o) => (nom === SANS_THEME ? !o.themes?.length && o.type !== "section" : o.themes?.includes(nom))
-    : (o) => (nom === SANS_GROUPE ? !o.groupes?.length : o.groupes?.includes(nom));
+    : (o) => (nom === SANS_GROUPE ? !o.groupes?.length : o.groupes?.some((x) => famille.includes(x)));
   const tous = [];
   etat.donnees.dates.forEach((x) => x.evenements.forEach((e) => {
     if (concerne(e)) tous.push({ date: dateExemple(x.date, x.mois, x.annee, e.approx), label: e.label, annee: x.annee });
@@ -504,15 +532,20 @@ function popupPanneau(sorte, nom) {
     [tous[i], tous[j]] = [tous[j], tous[i]];
   }
   const choix = tous.slice(0, NB_EXEMPLES).sort((a, b) => (a.annee ?? 0) - (b.annee ?? 0));
-  const sorteTexte = t(theme ? "Thème" : g.type === "echelle" ? "Échelle" : g.type === "lieu" ? "Lieu" : "");
+  const parent = theme ? null : parentDe(nom);
+  const sorteTexte = theme ? t("Thème") : g.type === "echelle" ? t("Échelle") : parent ? t("Lieu, dans {parent}", { parent })
+    : g.type === "lieu" ? t("Lieu") : "";
   const n = tous.length;
+  const pied = [n ? tn(n, "{n} élément", "{n} éléments") : t("Aucun élément pour l'instant.")];
+  if (enfants.length) pied.push(tn(enfants.length, "{n} sous-lieu compris", "{n} sous-lieux compris"));
+  if (n > NB_EXEMPLES) pied.push(t("{n} exemples tirés au hasard", { n: NB_EXEMPLES }));
   return {
     couleur: theme ? "var(--texte-2)" : g.affichage,
     ancrage: "droite",
     html: gabarit({
       groupe: sorteTexte, titre: nomAffiche(nom), texte: theme ? descriptionTheme(nom) : g.description,
       exemples: choix.map((c) => ({ date: c.date, texte: c.label })),
-      pied: n ? `${tn(n, "{n} élément", "{n} éléments")}${n > NB_EXEMPLES ? ` · ${t("{n} exemples tirés au hasard", { n: NB_EXEMPLES })}` : ""}` : t("Aucun élément pour l'instant."),
+      pied: pied.join(" · "),
     }),
   };
 }

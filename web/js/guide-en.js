@@ -84,6 +84,8 @@ export const GUIDE = [
       The first scale in the list is the broadest level.</li>
     </ul>
     <p>The order of groups (arrows ↑ ↓) is the order of the left panel and of the era columns.</p>
+    <p>Places can have <b>two levels</b> if you wish: a place can be filed under another one (<b>In</b> field of its form),
+    “France” in “Europe”. The sub-place keeps its own colour; choosing “Europe” in the filter also shows France.</p>
     <p>A new timeline starts with general <b>themes</b> (Civilisations, Power and politics, Wars and conflicts, Religion and beliefs…),
     which you can rename, complete or delete in the <b>Themes</b> sub-tab.</p>
     <h4>2. Add events</h4>
@@ -122,7 +124,8 @@ export const GUIDE = [
       <li><b>Special lines</b> (eons, eras, geological periods, historical periods): bands across the whole width,
       lighter for broader levels (the eon is the lightest). A diamond marks them on the axis.</li>
       <li><b>Columns on the left</b>: the span of each special line, one column per level, with its name written vertically.</li>
-      <li><b>Bars on the right</b>: the span of eras. Each place has its column, but two places that do not coexist in time share the same one (ancient Egypt, which ended in 30 BC, and the Arab-Muslim world, born in 622), leaving more room for events. Hovering over a bar highlights its event, and vice versa.</li>
+      <li><b>Bars on the right</b>: the span of eras. Each place has its column, but two places that do not coexist in time share the same one (ancient Egypt, which ended in 30 BC, and the Arab-Muslim world, born in 622), leaving more room for events. Hovering over a bar highlights its event, and vice versa.
+      Bars never take more than about a third of the width: when a timeline has too many eras at once, those marked <b>★ Important</b> come first, then the longest ones; the others keep their label, and their number is shown at the top (“689 eras without a bar”). Filtering a place brings them back. In that case, if the layout by place does not fit, each bar goes into the first free column: its colour then tells its place.</li>
       <li>Each bar carries its <b>start date</b> at the top and its <b>end date</b> at the bottom (if known and if there is room).</li>
       <li>The <b>name</b> of special lines and eras is written in their bar, top to bottom. It stays in the middle
       of the visible part while you scroll the timeline: you always know which period you are in.
@@ -164,9 +167,12 @@ export const GUIDE = [
       <li>${touche("Alt")} + click isolates a group (or shows everything again if it was alone).</li>
       <li><b>Show all</b> removes the filter.</li>
       <li>“No group” and “No theme” gather what has no place or theme yet.</li>
+      <li><b>Sub-places</b>: indented under their place. Choosing a place also shows its sub-places (they stay in colour in the panel),
+      and its number of events includes them. If the timeline has many places, sub-places can be collapsed (Data, Settings):
+      an arrow in front of each place shows or hides them.</li>
       <li>Hovering over a place, a theme or a scale shows its <b>description</b> (what it covers), its number of items
       and a few <b>examples</b> picked at random, different on each hover.</li>
-      <li>The filter is remembered from one visit to the next.</li>
+      <li>The filter is remembered from one visit to the next, timeline by timeline: each timeline gets its own back.</li>
       <li><b>‹</b>, to the right of the “Filter” title, collapses the panel into a thin strip (handy on a small screen); a click on the strip reopens it.
       A red dot on the strip reminds you that a filter is active. On a narrow screen, the panel starts collapsed.</li>
     </ul>`],
@@ -186,6 +192,8 @@ export const GUIDE = [
       <li>Events outside the spans are not counted; their number is shown at the top.</li>
       <li>Hovering over a segment gives the group, the range and the number. Clicking a bar opens the timeline at the start of the range.</li>
       <li>The filter in the left panel removes groups from the stack.</li>
+      <li>If there are sub-places, each one counts by default in the colour of its top-level place; Data, Settings can
+      give them their own share of the bar.</li>
     </ul>`],
 
   ["jeu", "Game", `
@@ -269,6 +277,14 @@ export const GUIDE = [
       French or English keys are accepted (<code>nom</code> or <code>name</code>, <code>groupes</code> or <code>groups</code>…).</li>
       <li>The whole addition is undone in one go with <b>Undo</b>.</li>
     </ul>
+    <h4>Copying items from one timeline to another (JSON)</h4>
+    <ul>
+      <li>At the bottom of an event or period form, the <b>JSON</b> block (click to expand it) shows the item
+      in the “Add several” format. You can also edit it there: the form fields follow, and an error is flagged without changing anything.</li>
+      <li><b>Copy</b>, then, in the other timeline, <b>Add several</b> and paste. For several items at once:
+      tick them, then <b>Copy as JSON</b> in the bulk edit panel.</li>
+      <li>Groups and themes must exist in the target timeline (the preview says so otherwise): create them first, or fix their name in the JSON.</li>
+    </ul>
     <h4>Turning an event into the start of an era</h4>
     <p>Two ways:</p>
     <ul>
@@ -295,7 +311,11 @@ export const GUIDE = [
       <li><b>Order</b>: arrows ↑ ↓; this is the order of the left panel and of the era columns.
       For scales, it is also the <b>hierarchy of special lines</b>: the first scale is the broadest level (level 1),
       the next ones finer and finer; the table shows it (“Scale · level 2”). A special line's level is that of its group.</li>
-      <li><b>Delete</b>: its events move to the chosen group, or end up with no group.</li>
+      <li><b>In</b>: files the place under another place, which must be top-level (two levels at most). Arrows ↑ ↓
+      move a sub-place among the sub-places of the same place, and a place together with all its sub-places. A place that has
+      sub-places stays at the top level.</li>
+      <li><b>Delete</b>: its events move to the chosen group, or end up with no group. Its sub-places move to the chosen group
+      if it is a top-level place, otherwise they return to the top level.</li>
     </ul>
     <h4>Themes</h4>
     <ul>
@@ -373,6 +393,7 @@ export const GUIDE = [
       <dt>Important</dt><dd>An event or period marked with a star ★, to spot it at a glance. An era created by “Link to an end” keeps the star of its start.</dd>
       <dt>Special line</dt><dd>An eon, an era, a geological or historical period: a band across the whole width.</dd>
       <dt>Group</dt><dd>A <b>place</b> (Rome, China…) or a <b>scale</b> (eon, era…). It gives the colour.</dd>
+      <dt>Sub-place</dt><dd>A place filed under another one (“France” in “Europe”); it keeps its colour.</dd>
       <dt>Theme</dt><dd>The subject of an event (Wars and conflicts, Religion and beliefs…), independent of the place. No colour; used for filtering.</dd>
       <dt>Inferred start</dt><dd>A provisional start of a special line, for lack of anything better: to be checked.</dd>
     </dl>`],

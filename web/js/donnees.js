@@ -9,12 +9,23 @@ export const nomAffiche = (nom) => (nom === SANS_GROUPE || nom === SANS_THEME ? 
 
 export const etat = {
   donnees: null,
+  fichier: "",            // nom du fichier de la frise ouverte (en-tête X-Fichier du serveur)
   version: null,
   modifie: false,
   filtre: new Set(),      // groupes affichés ; vide = tout afficher
   filtreThemes: new Set(), // thèmes affichés ; vide = tout afficher
   recherche: "",
 };
+
+// Ce que le navigateur retient pour chaque frise (filtre, position, lieux dépliés) : rangé sous le nom de son fichier,
+// pour qu'une frise ne reprenne pas le filtre d'une autre
+const cleFrise = (cle) => `${cle}:${etat.fichier}`;
+export function lireFrise(cle) {
+  try { return localStorage.getItem(cleFrise(cle)); } catch { return null; }
+}
+export function ecrireFrise(cle, valeur) {
+  try { localStorage.setItem(cleFrise(cle), valeur); } catch {}
+}
 
 const abonnes = new Map();
 export function ecouter(evenement, fn) {
@@ -35,6 +46,7 @@ export const EXPORTE_LE = EXPORT?.dataset.exporteLe || null;
 export async function charger() {
   if (EXPORT) {
     etat.donnees = JSON.parse(EXPORT.textContent);
+    etat.fichier = `export:${etat.donnees.titre || ""}`;
     indexer();
     figer(etat.donnees);    // lecture seule : plus rien ne peut changer les données, pas même la console du navigateur
     Object.defineProperty(etat, "donnees", { value: etat.donnees, writable: false, configurable: false });
@@ -48,6 +60,7 @@ export async function charger() {
     throw new Error(t(corps.erreur || "Le serveur a répondu {n}.", { n: rep.status }));
   }
   etat.version = rep.headers.get("X-Version");
+  try { etat.fichier = decodeURIComponent(rep.headers.get("X-Fichier") || ""); } catch { etat.fichier = ""; }
   etat.donnees = await rep.json();
   etat.modifie = false;
   reprendre();
@@ -162,6 +175,10 @@ export const uneSeuleLigne = () => etat.donnees?.reglages?.une_seule_ligne === t
 export const rappelContinu = () => etat.donnees?.reglages?.rappel === "continu";
 // Onglet Jeu : affiché seulement si la frise le demande (Données, Réglages)
 export const jeuActif = () => etat.donnees?.reglages?.jeu === true;
+// Sous-lieux : dépliés sous leur lieu dans le panneau (défaut), ou repliés (une flèche les montre)
+export const sousLieuxReplies = () => etat.donnees?.reglages?.sous_lieux === "replies";
+// Statistiques : un sous-lieu compte dans son lieu de premier niveau (défaut), ou a son propre segment
+export const empilerParSousLieu = () => etat.donnees?.reglages?.empilement === "sous_lieux";
 
 // Statistiques : des plages d'années, chacune découpée en tranches de « pas » ans (bornes incluses).
 // reglages.stats.plages = [{ debut, fin, pas }] ; par défaut, une seule plage par siècles, de - 5 000
@@ -198,7 +215,27 @@ export function tranchesStats(plages) {
 
 // ─── Index : identifiants d'exécution pour retrouver chaque élément ───
 
-export const index = { evenements: new Map(), periodes: new Map(), groupes: [], themes: [] };
+export const index = { evenements: new Map(), periodes: new Map(), groupes: [], themes: [], parents: new Map() };
+
+// ─── Deux niveaux de lieux : un lieu peut être rangé dans un autre (« parent »), sur un seul niveau ───
+// Le parent doit être un lieu de premier niveau ; sinon le champ est ignoré (le lieu reste au premier niveau).
+function parentValide(groupes, nom) {
+  const g = groupes[nom], p = g?.parent;
+  if (g?.type !== "lieu" || !p || p === nom || groupes[p]?.type !== "lieu" || groupes[p].parent) return null;
+  return p;
+}
+export const parentDe = (nom) => index.parents.get(nom) ?? null;
+export const sousLieux = (nom) => index.groupes.filter((g) => g.parent === nom).map((g) => g.nom);
+// Noms des groupes dans l'ordre d'affichage : chaque lieu de premier niveau suivi de ses sous-lieux
+export function ordreGroupes(groupes = etat.donnees.groupes) {
+  const noms = Object.keys(groupes), r = [];
+  for (const n of noms) {
+    if (parentValide(groupes, n)) continue;
+    r.push(n);
+    for (const s of noms) if (parentValide(groupes, s) === n) r.push(s);
+  }
+  return r;
+}
 
 export function indexer() {
   const d = etat.donnees;
@@ -209,9 +246,12 @@ export function indexer() {
     date.evenements.forEach((ev) => index.evenements.set(`e${n++}`, { ev, date }))
   );
   d.periodes.forEach((p, i) => index.periodes.set(`p${i}`, p));
-  index.groupes = Object.entries(d.groupes).map(([nom, g]) => ({
-    nom, couleur: g.couleur, type: g.type, affichage: couleurAffichage(g.couleur), description: g.description ?? null,
+  // dans l'ordre d'affichage : chaque lieu de premier niveau suivi de ses sous-lieux
+  index.groupes = ordreGroupes(d.groupes).map((nom) => ({ nom, ...d.groupes[nom] })).map((g) => ({
+    nom: g.nom, couleur: g.couleur, type: g.type, affichage: couleurAffichage(g.couleur), description: g.description ?? null,
+    parent: parentValide(d.groupes, g.nom),
   }));
+  index.parents = new Map(index.groupes.filter((g) => g.parent).map((g) => [g.nom, g.parent]));
   index.groupes.push({ nom: SANS_GROUPE, couleur: "#8a8680", type: "aucun", affichage: couleurAffichage(null),
     description: t("Évènements qui ne sont rattachés à aucun lieu.") });
   // thèmes : même forme que les groupes, { nom: { description } } ; une ancienne liste de noms est convertie
@@ -244,12 +284,13 @@ export function rayures(groupes, opacite = 12, pas = 6) {
 
 // Filtre commun : les lieux (ou échelles) cochés ET les thèmes cochés ; dans chaque partie, un seul suffit
 export function passeFiltre(groupes, themes) {
-  return passe(etat.filtre, groupes, SANS_GROUPE) && passe(etat.filtreThemes, themes, SANS_THEME);
+  return passe(etat.filtre, groupes, SANS_GROUPE, true) && passe(etat.filtreThemes, themes, SANS_THEME);
 }
-function passe(filtre, noms, sans) {
+// un lieu de premier niveau coché fait passer aussi ses sous-lieux
+function passe(filtre, noms, sans, lieux = false) {
   if (!filtre.size) return true;
   if (!noms || !noms.length) return filtre.has(sans);
-  return noms.some((n) => filtre.has(n));
+  return noms.some((n) => filtre.has(n) || (lieux && filtre.has(parentDe(n))));
 }
 export const filtreActif = () => etat.filtre.size > 0 || etat.filtreThemes.size > 0;
 

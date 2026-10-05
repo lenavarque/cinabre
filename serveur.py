@@ -8,7 +8,7 @@ Serveur local de Cinabre, la frise chronologique.
 
 Aucune dépendance : bibliothèque standard uniquement.
 - sert l'interface (dossier web/)
-- GET  /api/donnees : renvoie le JSON
+- GET  /api/donnees : renvoie le JSON (en-têtes X-Version et X-Fichier, le nom du fichier ouvert)
 - PUT  /api/donnees : enregistre le JSON, après avoir sauvegardé la version précédente
   dans sauvegardes/ (au plus une copie toutes les 30 min, 40 copies conservées).
 - GET  /api/frises : liste les frises du dossier (tout fichier .json avec des dates et des groupes)
@@ -31,6 +31,7 @@ from datetime import datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import quote
 
 RACINE = Path(__file__).resolve().parent
 WEB = RACINE / "web"
@@ -219,6 +220,8 @@ class Gestionnaire(SimpleHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(contenu)))
         self.send_header("X-Version", version(contenu))
+        # nom du fichier ouvert : le navigateur y range ce qu'il retient pour chaque frise (filtre, position…)
+        self.send_header("X-Fichier", quote(self.stockage.fichier.name))
         self.end_headers()
         self.wfile.write(contenu)
 
